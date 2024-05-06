@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基于Flower的模型区域聚合时序图</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 900px; /* Adjusted width for readability */
+            overflow-x: auto;
+        }
+        .mermaid {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .mermaid .note {
+            fill: #fffbe6;
+            stroke: #ffe082;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>基于Flower的模型区域聚合时序图</h1>
+        <div class="mermaid">
+            sequenceDiagram
+                participant EdgeDevice as 边缘设备 (Flower Client)
+                participant RegionalServer as 区域聚合服务器 (Flower Server)
+                participant CentralServer as 中央服务器 (全局协调)
+                participant ModelStorage as 模型存储
+
+                Note over CentralServer, ModelStorage: 初始全局模型下发 (第一轮开始前)
+
+                CentralServer->>ModelStorage: 1. 获取初始全局模型
+                ModelStorage-->>CentralServer: 2. 返回初始全局模型
+                CentralServer->>RegionalServer: 3. 下发初始全局模型参数 (或聚合配置)
+
+                Note over EdgeDevice, RegionalServer: 联邦学习训练轮次 (Rounds)
+
+                loop 每一轮训练
+                    RegionalServer->>EdgeDevice: 4. (Flower Server) 下发当前全局模型参数 (或任务指令)
+
+                    EdgeDevice->>EdgeDevice: 5. (Flower Client) 在本地数据集上执行模型训练 (fit)
+                    EdgeDevice->>RegionalServer: 6. (Flower Client) 上传本地模型更新 (参数差值, 训练样本数)
+
+                    RegionalServer->>RegionalServer: 7. 接收多个边缘设备的本地更新
+                    RegionalServer->>RegionalServer: 8. (Flower Server) 执行区域模型聚合 (如FedAvg)
+                    RegionalServer->>CentralServer: 9. 上传区域聚合模型
+
+                    CentralServer->>CentralServer: 10. 接收多个区域聚合模型
+                    CentralServer->>CentralServer: 11. (全局协调) 执行全局模型聚合
+                    CentralServer->>ModelStorage: 12. 存储最新全局模型
+                    ModelStorage-->>CentralServer: 13. 存储成功
+
+                    CentralServer->>RegionalServer: 14. (可选) 下发最新全局模型参数 (用于下一轮)
+                end
+        </div>
+    </div>
+
+    <!-- Mermaid.js CDN (using standard script tag) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        // Initialize Mermaid after the content is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            mermaid.initialize({ startOnLoad: true });
+        });
+    </script>
+</body>
+</html>

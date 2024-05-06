@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>联邦学习模型聚合时序图 (基于Flower)</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f9f9f9;
+    }
+
+    .mermaid {
+      /* 将图表放大到原来的 1.5 倍，您可以根据需要调整这个数值 */
+      transform: scale(1.5);
+    }
+  </style>
+</head>
+<body>
+
+<div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant CS as 中央服务器 (Flower Server)
+    participant ES as 区域聚合服务器 (Edge Proxy)
+    participant C1 as 安卓客户端 1
+    participant CN as 安卓客户端 N
+
+    loop 一轮聚合 (Aggregation Round)
+        Note over C1, CN: 各客户端已完成本地训练...
+
+        par 客户端并行上传更新
+            C1-->>ES: 1. 响应: FitRes (本地模型更新 1)
+        and
+            CN-->>ES: 2. 响应: FitRes (本地模型更新 N)
+        end
+
+        activate ES
+        Note over ES: 区域服务器等待并聚合<br>其下所有客户端的更新。
+        deactivate ES
+
+        ES-->>CS: 3. 响应: FitRes (区域聚合结果)
+
+        activate CS
+        Note over CS: 中央服务器等待并聚合<br>所有区域服务器的结果<br>以更新全局模型。
+        deactivate CS
+    end
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true });
+</script>
+
+</body>
+</html>

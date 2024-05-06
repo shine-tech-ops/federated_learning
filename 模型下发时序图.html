@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>联邦学习模型下发时序图 (基于Flower)</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f9f9f9;
+    }
+
+    /* --- 新增的 CSS 规则 --- */
+    .mermaid {
+      /* 将图表放大到原来的 1.5 倍，您可以根据需要调整这个数值 */
+      transform: scale(1.5);
+    }
+  </style>
+</head>
+<body>
+
+<div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant CS as 中央服务器 (Flower Server)
+    participant ES as 区域聚合服务器 (Edge Proxy)
+    participant Client as 安卓客户端 (Flower Client)
+
+    loop 一轮训练 (Training Round)
+        CS->>ES: 1. 指令: Fit (发送全局模型参数和配置)
+        activate ES
+        Note right of CS: 服务器将全局模型下发至<br>区域聚合节点。
+
+        ES->>Client: 2. 指令: Fit (转发模型参数和配置)
+        activate Client
+        Note right of ES: 区域节点将模型进一步<br>下发至被选中的客户端。
+
+        Note over Client: 客户端使用本地数据进行模型训练...
+
+        Client-->>ES: 3. 响应: FitRes (返回本地更新和样本数)
+        deactivate Client
+
+        Note over ES: 区域节点可聚合其下<br>多个客户端的更新结果。
+
+        ES-->>CS: 4. 响应: FitRes (返回聚合后的更新结果)
+        deactivate ES
+
+        Note over CS: 中央服务器聚合所有结果<br>以更新全局模型。
+    end
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true });
+</script>
+
+</body>
+</html>

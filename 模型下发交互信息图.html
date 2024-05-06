@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flower 模型下发：交互式信息图</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Brilliant Blues & Warm Accents -->
+    <!-- Application Structure Plan: The SPA is structured as a narrative infographic focusing on the "model distribution" aspect. It begins with a hero section. The core is a clear, interactive vertical flowchart built with HTML/CSS, illustrating the downward flow of models from Central Server to Edge Client. Each step in the flowchart is clickable, revealing detailed explanations in a dynamic panel below. A dedicated section then outlines the specific responsibilities of Flower vs. the Developer during distribution. It concludes with a summary chart visualizing the division of labor. This structure provides a guided, interactive learning experience to simplify a complex technical process. -->
+    <!-- Visualization & Content Choices: 1. Core Process: Interactive Vertical Flowchart (HTML/CSS + JS). Goal: Organize & Explain Process. Interaction: Click on steps for detailed text. Justification: Clearly visualizes the sequential downward flow, making it intuitive. NO SVG/Mermaid used. 2. Responsibilities: Card Layout (HTML/CSS). Goal: Compare & Inform. Justification: Efficiently presents a clear distinction between framework and developer roles. 3. Division of Labor: Donut Chart (Chart.js/Canvas). Goal: Inform (proportion). Justification: Quantifies Flower's significant role in handling distribution complexity, reinforcing the core message. Tooltips are configured and labels are wrapped as required. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            color: #1e293b; /* slate-800 */
+        }
+        .flow-step-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+            cursor: pointer;
+            position: relative;
+            background-color: #ffffff;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 2px solid transparent;
+            min-height: 120px; /* Ensure consistent height */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .flow-step-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .flow-step-card.active {
+            transform: translateY(-2px);
+            border-color: #2563eb; /* blue-600 */
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+        .step-number {
+            position: absolute;
+            top: -1.25rem;
+            left: -1.25rem;
+            background-color: #2563eb; /* blue-600 */
+            color: white;
+            border-radius: 9999px;
+            height: 2.5rem;
+            width: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.25rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .details-panel {
+            transition: opacity 0.4s ease-in-out, max-height 0.4s ease-in-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .details-panel.show {
+            max-height: 1000px;
+            opacity: 1;
+        }
+        .flow-arrow-down {
+            font-size: 2.5rem;
+            color: #94a3b8; /* slate-400 */
+            font-weight: 300;
+            text-align: center;
+            margin: 1rem 0;
+        }
+        .flow-entity-header {
+            font-weight: 600;
+            font-size: 1.25rem;
+            color: #475569; /* slate-700 */
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* max-w-xl */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px; /* Base height */
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <main class="container mx-auto px-4 py-12 md:py-16">
+
+        <section id="hero" class="text-center mb-16">
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-slate-900">模型下发：联邦学习核心环节</h1>
+            <h2 class="text-2xl md:text-3xl font-semibold text-blue-600 mb-6">分层架构中的模型参数传递</h2>
+            <p class="max-w-3xl mx-auto text-lg text-slate-600">
+                深入理解 Flower 框架如何在多层联邦学习架构中，高效、安全地将全局模型参数逐级下发至边缘设备。
+            </p>
+        </section>
+
+        <section id="interactive-flow" class="mb-20">
+            <h3 class="text-3xl font-bold text-center mb-12 text-slate-800">模型下发流程 (Distribution Flow)</h3>
+
+            <div class="flex flex-col items-center max-w-2xl mx-auto space-y-6">
+                <!-- Central Server -->
+                <div class="w-full text-center">
+                    <div class="flow-entity-header text-blue-700">中央服务器 (Flower Server)</div>
+                    <div id="step-central-distribute" class="flow-step-card w-full">
+                        <span class="step-number">1</span>
+                        <h4 class="text-lg font-semibold text-slate-800">下发全局模型至区域聚合服务器</h4>
+                        <p class="mt-2 text-slate-600">中央服务器根据策略，将最新的全局模型参数和配置发送给选定的区域聚合服务器。</p>
+                    </div>
+                </div>
+                <div class="flow-arrow-down">↓</div>
+
+                <!-- Aggregation Server -->
+                <div class="w-full text-center">
+                    <div class="flow-entity-header text-yellow-700">区域聚合服务器 (Edge Proxy)</div>
+                    <div id="step-agg-forward" class="flow-step-card w-full">
+                        <span class="step-number">2</span>
+                        <h4 class="text-lg font-semibold text-slate-800">转发模型参数至边缘客户端</h4>
+                        <p class="mt-2 text-slate-600">区域聚合服务器接收全局模型，并将其进一步下发给其管辖下的边缘客户端。</p>
+                    </div>
+                </div>
+                <div class="flow-arrow-down">↓</div>
+
+                <!-- Edge Client -->
+                <div class="w-full text-center">
+                    <div class="flow-entity-header text-green-700">边缘客户端 (Android/iOS)</div>
+                    <div id="step-edge-receive" class="flow-step-card w-full">
+                        <span class="step-number">3</span>
+                        <h4 class="text-lg font-semibold text-slate-800">接收模型参数并更新本地模型</h4>
+                        <p class="mt-2 text-slate-600">边缘客户端接收到模型参数和配置，用于更新其本地训练模型。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="details-panel" class="details-panel mt-12 bg-white p-8 rounded-xl shadow-xl border border-slate-200">
+                <h4 id="details-title" class="text-2xl font-bold mb-4 text-blue-700"></h4>
+                <div id="details-content" class="prose max-w-none text-slate-700"></div>
+            </div>
+        </section>
+
+        <section id="roles-and-responsibilities" class="mb-20">
+            <h3 class="text-3xl font-bold text-center mb-12 text-slate-800">职责划分：Flower 与开发者</h3>
+            <p class="text-center text-slate-600 max-w-3xl mx-auto mb-10">
+                在模型下发过程中，Flower 框架承担了大部分复杂且通用的技术工作，让开发者能够专注于模型本身和训练逻辑。
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <!-- Flower's Responsibilities -->
+                <div class="bg-blue-50 p-6 rounded-lg shadow-lg border-t-4 border-blue-600">
+                    <h4 class="text-xl font-bold mb-3 text-blue-700">⚙️ Flower 框架职责</h4>
+                    <ul class="list-disc list-inside space-y-2 text-slate-600">
+                        <li>**网络通信**: 管理所有层级之间的 gRPC 长连接。</li>
+                        <li>**参数序列化**: 将模型参数（NumPy 数组）高效地序列化为 Protobuf 字节流进行传输。</li>
+                        <li>**参数反序列化**: 在接收端将 Protobuf 字节流反序列化回模型所需的格式。</li>
+                        <li>**客户端选择**: 根据配置（如 `fraction_fit`）选择参与的客户端。</li>
+                    </ul>
+                </div>
+                <!-- Developer's Responsibilities -->
+                <div class="bg-amber-50 p-6 rounded-lg shadow-lg border-t-4 border-amber-600">
+                    <h4 class="text-xl font-bold mb-3 text-amber-700">👨‍💻 开发者职责</h4>
+                    <ul class="list-disc list-inside space-y-2 text-slate-600">
+                        <li>**模型定义**: 设计并实现您的机器学习模型（例如 Keras, PyTorch 模型）。</li>
+                        <li>**模型管理**: 实现模型的加载、保存和版本控制（在服务器端）。</li>
+                        <li>**客户端 `fit` 方法**: 在边缘客户端实现 `fit` 方法，以接收并使用下发的模型参数来更新本地模型。</li>
+                        <li>**策略配置**: 配置服务器端的 Flower `Strategy`，定义下发行为（例如选择哪些客户端）。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="complexity-distribution-chart">
+            <h3 class="text-3xl font-bold text-center mb-12 text-slate-800">模型下发职责复杂度分布</h3>
+            <div class="bg-white p-8 rounded-lg shadow-lg max-w-md mx-auto">
+                <p class="text-center text-slate-600 mb-6">Flower 框架在模型下发中承担了大部分底层通信和数据格式转换的复杂性。</p>
+                <div class="h-80 w-full mx-auto chart-container">
+                    <canvas id="distributionComplexityChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const detailsData = {
+            "step-central-distribute": {
+                title: "第 1 步：中央服务器下发全局模型至区域聚合服务器",
+                content: `
+                    <p>在联邦学习的一个训练轮次开始时，**中央服务器**会扮演“大脑”的角色，决定本轮要训练的全局模型版本。</p>
+                    <p class="mt-2">它会从持久化存储（如文件系统、数据库）中加载最新的全局模型参数，并根据预设的策略（例如，选择哪些区域聚合服务器参与本轮训练），将这些参数和训练相关的配置信息发送给选定的**区域聚合服务器**。</p>
+                    <p class="mt-4 font-semibold">Flower 框架在此步中的职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li>**参数序列化**: 将模型参数（通常是 NumPy 数组）高效地转换为 Protobuf 字节流，以便通过网络传输。</li>
+                        <li>**通信管理**: 通过 gRPC 长连接，安全、可靠地将模型参数和配置发送到区域聚合服务器。</li>
+                        <li>**客户端选择**: 根据中央服务器的策略，选择要下发模型的区域聚合服务器。</li>
+                    </ul>
+                    <p class="mt-4 font-semibold">开发者在此步中的职责 (中央服务器):</p>
+                    <ul class="list-disc list-inside">
+                        <li>配置中央服务器的 Flower Strategy，定义如何选择区域聚合服务器，以及传递哪些配置。</li>
+                        <li>确保能够加载或维护当前最新的全局模型参数。</li>
+                    </ul>
+                `
+            },
+            "step-agg-forward": {
+                title: "第 2 步：区域聚合服务器转发模型参数至边缘客户端",
+                content: `
+                    <p>**区域聚合服务器**是联邦学习架构的中间层。它接收到来自中央服务器的全局模型参数后，并不会直接进行本地训练（除非它也兼具边缘设备的功能），而是扮演一个“中继站”的角色。</p>
+                    <p class="mt-2">它会根据自己的策略（例如，筛选出在线、健康且符合条件的边缘客户端），将从中央服务器接收到的模型参数进一步下发给这些被选中的**边缘客户端**。</p>
+                    <p class="mt-4 font-semibold">Flower 框架在此步中的职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li>**参数转发**: 接收并处理来自中央服务器的参数，并准备转发给边缘客户端。</li>
+                        <li>**通信管理**: 维护与所有边缘客户端的 gRPC 连接，处理模型的下发。</li>
+                        <li>**客户端选择**: 根据区域聚合服务器的策略，选择要下发模型的边缘客户端。</li>
+                    </ul>
+                    <p class="mt-4 font-semibold">开发者在此步中的职责 (区域聚合服务器):</p>
+                    <ul class="list-disc list-inside">
+                        <li>配置区域聚合服务器的 Flower Strategy，定义其下属边缘客户端的选择和下发逻辑。</li>
+                    </ul>
+                `
+            },
+            "step-edge-receive": {
+                title: "第 3 步：边缘客户端接收模型参数并更新本地模型",
+                content: `
+                    <p>**边缘客户端**是联邦学习最底层的参与者，拥有本地私有数据。它会从其所属的区域聚合服务器接收模型参数和训练配置。</p>
+                    <p class="mt-2">Flower 客户端 SDK 会自动处理接收到的 Protobuf 格式的模型参数，并将其反序列化为您的机器学习模型能够直接使用的格式（例如 NumPy 数组）。</p>
+                    <p class="mt-2">接收到参数后，边缘客户端会使用这些参数来更新其本地的模型，为接下来的本地训练做准备。</p>
+                    <p class="mt-4 font-semibold">Flower 框架在此步中的职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li>**通信管理**: 维护与区域聚合服务器的 gRPC 连接。</li>
+                        <li>**参数反序列化**: 自动将接收到的 Protobuf 格式参数反序列化为 NumPy 数组。</li>
+                        <li>**接口提供**: 通过客户端 SDK 提供清晰的接口（如 <code>fit</code> 方法的 <code>parameters</code> 参数），让开发者能够方便地获取下发的模型。</li>
+                    </ul>
+                    <p class="mt-4 font-semibold">开发者在此步中的职责 (边缘客户端):</p>
+                    <ul class="list-disc list-inside">
+                        <li>实现客户端的 <code>fit</code> 方法，接收由 Flower 提供的模型参数。</li>
+                        <li>将这些参数加载到您本地的机器学习模型中（例如，使用 <code>model.set_weights()</code>）。</li>
+                    </ul>
+                `
+            }
+        };
+
+        const steps = document.querySelectorAll('.flow-step-card');
+        const detailsPanel = document.getElementById('details-panel');
+        const detailsTitle = document.getElementById('details-title');
+        const detailsContent = document.getElementById('details-content');
+        let activeStep = null;
+
+        steps.forEach(step => {
+            step.addEventListener('click', () => {
+                const stepId = step.id;
+
+                if (activeStep) {
+                    activeStep.classList.remove('active');
+                }
+
+                if (activeStep === step) {
+                    detailsPanel.classList.remove('show');
+                    activeStep = null;
+                } else {
+                    step.classList.add('active');
+                    activeStep = step;
+
+                    detailsTitle.textContent = detailsData[stepId].title;
+                    detailsContent.innerHTML = detailsData[stepId].content;
+                    detailsPanel.classList.add('show');
+                }
+            });
+        });
+
+        const donutCtx = document.getElementById('distributionComplexityChart').getContext('2d');
+        const donutLabels = [
+            ['Flower 框架职责', '(通信, 序列化/反序列化)'],
+            ['开发者职责', '(模型定义, 策略配置)']
+        ];
+
+        const tooltipTitleCallback = (tooltipItems) => {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            if (Array.isArray(label)) {
+                return label.join(' ');
+            }
+            return label;
+        };
+
+        new Chart(donutCtx, {
+            type: 'doughnut',
+            data: {
+                labels: donutLabels,
+                datasets: [{
+                    label: '模型下发职责分布',
+                    data: [80, 20],
+                    backgroundColor: [
+                        '#2563eb',
+                        '#f59e0b'
+                    ],
+                    borderColor: '#f9fafc',
+                    borderWidth: 4,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: {
+                                size: 14,
+                                family: "'Noto Sans SC', sans-serif"
+                            },
+                            padding: 20,
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                return data.labels.map((label, i) => {
+                                    const meta = chart.getDatasetMeta(0);
+                                    const style = data.datasets[0].backgroundColor[i];
+                                    return {
+                                        text: Array.isArray(label) ? label.join(' ') : label,
+                                        fillStyle: style,
+                                        strokeStyle: data.datasets[0].borderColor,
+                                        lineWidth: data.datasets[0].borderWidth,
+                                        hidden: isNaN(meta.data[i].parsed),
+                                        index: i
+                                    };
+                                });
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: tooltipTitleCallback,
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                    label += context.parsed + '%';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+    </script>
+
+</body>
+</html>

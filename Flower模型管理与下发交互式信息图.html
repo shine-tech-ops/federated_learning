@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flower 模型管理与下发 - 交互式信息图</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Soothing Neutrals & Warm Accents -->
+    <!-- Application Structure Plan: The SPA is structured as a comparative dashboard. A central hero section introduces the topic. The main content is a two-column layout visually separating "Developer's Role (Management)" from "Flower's Role (Distribution)". Users can click on cards within each column to dynamically display detailed information in a shared panel below. This is followed by a visual flowchart built with HTML/CSS to synthesize the entire process. A concluding donut chart quantifies the division of labor. This structure was chosen to transform a descriptive text into an exploratory and comparative learning tool, enhancing comprehension and engagement. -->
+    <!-- Visualization & Content Choices: 1. Main Concepts (Storage, Versioning, Protobuf, etc.): Interactive Cards (HTML/CSS + JS). Goal: Organize & Inform. Interaction: Click to reveal details. Justification: Breaks down complex text into digestible, user-triggered chunks. 2. End-to-End Process: Flowchart Diagram (HTML/CSS). Goal: Organize & Show Process. Interaction: Static visual guide. Justification: Provides a high-level overview connecting all concepts, built without SVG/Mermaid. 3. Division of Labor: Donut Chart (Chart.js/Canvas). Goal: Inform (single data point). Interaction: Hover for tooltips. Justification: Adds a quantitative, infographic-style visual to summarize the core message of responsibility split. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f9f9f9;
+            color: #404040;
+        }
+        .card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .card.active {
+            transform: translateY(-2px);
+            border-color: #f59e0b; /* Amber 500 */
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+        }
+        .details-panel {
+            transition: opacity 0.4s ease-in-out, max-height 0.4s ease-in-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .details-panel.show {
+            max-height: 1000px; /* Adjust as needed */
+            opacity: 1;
+        }
+        .flowchart-step {
+            position: relative;
+            z-index: 1;
+        }
+        .flowchart-arrow {
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            transform: translateY(-50%);
+            width: 50px; /* Adjust based on gap */
+            height: 2px;
+            background-color: #d1d5db;
+        }
+         .flowchart-arrow::after {
+            content: '';
+            position: absolute;
+            right: -8px;
+            top: -4px;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            border-left: 8px solid #d1d5db;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <main class="container mx-auto px-4 py-12 md:py-16">
+
+        <section id="hero" class="text-center mb-16">
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-neutral-800">Flower 联邦学习</h1>
+            <h2 class="text-2xl md:text-3xl font-semibold text-amber-600 mb-6">模型管理与下发机制</h2>
+            <p class="max-w-3xl mx-auto text-lg text-neutral-600">
+                一个交互式指南，清晰划分 Flower 框架与开发者在模型生命周期管理中的职责。
+            </p>
+        </section>
+
+        <section id="main-content" class="mb-16">
+            <h3 class="text-3xl font-bold text-center mb-10 text-neutral-700">职责划分：开发者 vs. Flower 框架</h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+                <!-- Developer's Role -->
+                <div class="space-y-6">
+                    <h4 class="text-2xl font-bold text-center text-sky-700">👨‍💻 开发者职责：模型管理</h4>
+                    <div id="card-storage" class="card bg-white p-6 rounded-lg shadow-md border-2 border-transparent">
+                        <h5 class="text-xl font-semibold">1. 存储</h5>
+                        <p class="text-neutral-500 mt-2">负责模型参数的持久化，确保可追溯、可回滚。</p>
+                    </div>
+                    <div id="card-versioning" class="card bg-white p-6 rounded-lg shadow-md border-2 border-transparent">
+                        <h5 class="text-xl font-semibold">2. 版本控制</h5>
+                        <p class="text-neutral-500 mt-2">为每个模型分配唯一版本，追踪实验与性能。</p>
+                    </div>
+                    <div id="card-loading" class="card bg-white p-6 rounded-lg shadow-md border-2 border-transparent">
+                        <h5 class="text-xl font-semibold">3. 加载</h5>
+                        <p class="text-neutral-500 mt-2">在训练开始前，加载指定的全局模型参数。</p>
+                    </div>
+                </div>
+
+                <!-- Flower's Role -->
+                <div class="space-y-6">
+                    <h4 class="text-2xl font-bold text-center text-teal-700">⚙️ Flower 职责：模型下发</h4>
+                    <div id="card-internal" class="card bg-white p-6 rounded-lg shadow-md border-2 border-transparent">
+                        <h5 class="text-xl font-semibold">1. 内部表示 (Python)</h5>
+                        <p class="text-neutral-500 mt-2">在代码中将模型权重表示为 NumPy 数组列表。</p>
+                    </div>
+                    <div id="card-transport" class="card bg-white p-6 rounded-lg shadow-md border-2 border-transparent">
+                        <h5 class="text-xl font-semibold">2. 网络传输 (Protobuf)</h5>
+                        <p class="text-neutral-500 mt-2">自动将 NumPy 数组序列化为高效的 Protobuf 格式。</p>
+                    </div>
+                    <div id="card-reception" class="card bg-white p-6 rounded-lg shadow-md border-2 border-transparent">
+                        <h5 class="text-xl font-semibold">3. 客户端接收</h5>
+                        <p class="text-neutral-500 mt-2">自动反序列化，将参数提供给客户端模型。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="details-panel" class="details-panel mt-12 bg-white p-8 rounded-xl shadow-xl border border-neutral-200">
+                <h4 id="details-title" class="text-2xl font-bold mb-4"></h4>
+                <div id="details-content" class="prose max-w-none text-neutral-600"></div>
+            </div>
+        </section>
+
+        <section id="process-flow" class="mb-16">
+            <h3 class="text-3xl font-bold text-center mb-10 text-neutral-700">端到端流程示意图</h3>
+            <div class="bg-white p-8 rounded-lg shadow-lg">
+                <div class="flex justify-between items-center text-center space-x-4">
+                    <div class="flowchart-step flex-1 bg-sky-100 p-4 rounded-md border border-sky-300">
+                        <div class="font-bold text-sky-800">1. 模型管理 (开发者)</div>
+                        <p class="text-sm text-sky-700">保存/加载模型</p>
+                        <div class="flowchart-arrow"></div>
+                    </div>
+                    <div class="flowchart-step flex-1 bg-teal-100 p-4 rounded-md border border-teal-300">
+                        <div class="font-bold text-teal-800">2. 序列化 (Flower)</div>
+                        <p class="text-sm text-teal-700">NumPy ➔ Protobuf</p>
+                        <div class="flowchart-arrow"></div>
+                    </div>
+                    <div class="flowchart-step flex-1 bg-neutral-100 p-4 rounded-md border border-neutral-300">
+                        <div class="font-bold text-neutral-800">3. 网络传输</div>
+                        <p class="text-sm text-neutral-700">gRPC 长连接</p>
+                        <div class="flowchart-arrow"></div>
+                    </div>
+                    <div class="flowchart-step flex-1 bg-teal-100 p-4 rounded-md border border-teal-300">
+                        <div class="font-bold text-teal-800">4. 反序列化 (Flower)</div>
+                        <p class="text-sm text-teal-700">Protobuf ➔ NumPy</p>
+                        <div class="flowchart-arrow"></div>
+                    </div>
+                    <div class="flowchart-step flex-1 bg-sky-100 p-4 rounded-md border border-sky-300">
+                        <div class="font-bold text-sky-800">5. 模型使用 (开发者)</div>
+                        <p class="text-sm text-sky-700">加载参数并训练</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="division-of-labor-chart">
+            <h3 class="text-3xl font-bold text-center mb-10 text-neutral-700">工作量划分</h3>
+             <div class="bg-white p-8 rounded-lg shadow-lg max-w-xl mx-auto">
+                <p class="text-center text-neutral-600 mb-6">Flower 框架处理了绝大部分复杂的底层工作，让开发者可以专注于模型和业务逻辑。</p>
+                <div class="h-80 w-full mx-auto">
+                    <canvas id="responsibilityChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const detailsData = {
+            "card-storage": {
+                title: "模型存储",
+                content: `
+                    <p>在每一轮聚合完成后，服务器会得到一个最新的全局模型参数。为了能够追溯、回滚或重新开始训练，您需要将这些 NumPy 数组持久化。</p>
+                    <strong>常见做法:</strong>
+                    <ul>
+                        <li><strong>本地文件:</strong> 将参数保存为 <code>.npy</code> 文件或通过 <code>pickle</code> 序列化。</li>
+                        <li><strong>分布式文件系统:</strong> 使用 HDFS, AWS S3, MinIO 等，用于大规模部署。</li>
+                        <li><strong>数据库（元数据）:</strong> 存储模型的元数据，如版本号、评估指标，以及指向实际模型文件存储路径的引用。</li>
+                    </ul>
+                `
+            },
+            "card-versioning": {
+                title: "模型版本控制",
+                content: `
+                    <p>通过给每个聚合后的模型分配唯一的版本号，并将其与元数据一起存储，您可以实现模型的版本管理。</p>
+                    <p>这对于实验追踪、性能对比和生产部署至关重要。您可以根据版本号加载特定的历史模型进行分析或重新训练。</p>
+                `
+            },
+            "card-loading": {
+                title: "模型加载",
+                content: `
+                    <p>在每一轮训练开始前，服务器需要加载最新的全局模型参数，以便将其下发给客户端。</p>
+                    <p>如果是首次启动联邦学习，则会加载一个初始的预训练模型作为训练的起点。加载逻辑需要您根据您的存储方案自行实现。</p>
+                `
+            },
+            "card-internal": {
+                title: "内部表示 (Python)",
+                content: `
+                    <p>在您的 Python 代码中，模型权重通常是 NumPy 数组的列表 (<code>List[np.ndarray]</code>)。</p>
+                    <p>Flower 客户端的 <code>get_parameters</code> 和 <code>fit</code> 方法都使用这种格式与框架进行交互，这是开发者最常接触的数据形式。</p>
+                `
+            },
+            "card-transport": {
+                title: "网络传输 (Protobuf)",
+                content: `
+                    <p>为了在网络上传输，Flower 会自动将 NumPy 数组转换为其内部的 <code>flwr.common.Parameters</code> 格式，这是一个 Protocol Buffers (Protobuf) 消息。</p>
+                    <p>Protobuf 是一种高效、可扩展的序列化方法，它将数据编码成紧凑的二进制格式，非常适合网络传输。这个过程对开发者是透明的。</p>
+                    <p><code>Parameters</code> 对象主要包含模型的权重数据 (<code>tensors</code>) 和数据类型 (<code>tensor_type</code>)。</p>
+                `
+            },
+            "card-reception": {
+                title: "客户端接收与反序列化",
+                content: `
+                    <p>当客户端（Python, Android, 或 iOS）接收到 Protobuf 消息后，Flower SDK 会负责将其反序列化回 NumPy 数组。</p>
+                    <p>开发者在客户端的 <code>fit</code> 方法中直接获取到可用的 NumPy 数组，然后可以将其加载到本地的机器学习模型（如 TensorFlow, PyTorch 模型）中进行训练。</p>
+                `
+            }
+        };
+
+        const cards = document.querySelectorAll('.card');
+        const detailsPanel = document.getElementById('details-panel');
+        const detailsTitle = document.getElementById('details-title');
+        const detailsContent = document.getElementById('details-content');
+        let activeCard = null;
+
+        cards.forEach(card => {
+            card.addEventListener('click', () => {
+                const cardId = card.id;
+
+                if (activeCard) {
+                    activeCard.classList.remove('active');
+                }
+
+                if (activeCard === card) {
+                    detailsPanel.classList.remove('show');
+                    activeCard = null;
+                } else {
+                    card.classList.add('active');
+                    activeCard = card;
+
+                    detailsTitle.textContent = detailsData[cardId].title;
+                    detailsContent.innerHTML = detailsData[cardId].content;
+                    detailsPanel.classList.add('show');
+                }
+            });
+        });
+
+        // Chart.js Donut Chart
+        const ctx = document.getElementById('responsibilityChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Flower 框架职责 (底层通信/序列化)', '开发者职责 (模型/存储/策略)'],
+                datasets: [{
+                    label: '工作量划分',
+                    data: [75, 25],
+                    backgroundColor: [
+                        '#0d9488', // Teal 600
+                        '#0ea5e9'  // Sky 500
+                    ],
+                    borderColor: '#f9f9f9',
+                    borderWidth: 4,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: {
+                                size: 14,
+                                family: "'Noto Sans SC', sans-serif"
+                            },
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                    label += context.parsed + '%';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+    </script>
+
+</body>
+</html>

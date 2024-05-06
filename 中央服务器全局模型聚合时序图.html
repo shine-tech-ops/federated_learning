@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基于Flower的中央服务器全局模型聚合时序图</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 900px; /* Adjusted width for readability */
+            overflow-x: auto;
+        }
+        .mermaid {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .mermaid .note {
+            fill: #fffbe6;
+            stroke: #ffe082;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>基于Flower的中央服务器全局模型聚合时序图</h1>
+        <div class="mermaid">
+            sequenceDiagram
+                participant RegionalServer as 区域聚合服务器 (Flower Client for Central)
+                participant CentralServer as 中央服务器 (Flower Server)
+                participant ModelStorage as 模型存储
+
+                Note over CentralServer, ModelStorage: 全局聚合过程
+
+                CentralServer->>CentralServer: 1. (Flower Server) 启动全局聚合轮次
+                CentralServer->>RegionalServer: 2. 请求区域聚合模型 (GetAggregatedModel)
+
+                RegionalServer->>CentralServer: 3. 上传区域聚合模型 (AggregatedWeights, NumSamples)
+
+                CentralServer->>CentralServer: 4. 接收多个区域聚合模型更新
+                CentralServer->>CentralServer: 5. (Flower Server) 执行全局模型聚合 (如FedAvg)
+
+                CentralServer->>ModelStorage: 6. 存储最新全局模型
+                ModelStorage-->>CentralServer: 7. 存储成功
+
+                CentralServer->>RegionalServer: 8. (可选) 下发最新全局模型参数 (用于下一层区域聚合)
+                RegionalServer-->>RegionalServer: (准备下一轮区域聚合)
+        </div>
+    </div>
+
+    <!-- Mermaid.js CDN (using standard script tag) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        // Initialize Mermaid after the content is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            mermaid.initialize({ startOnLoad: true });
+        });
+    </script>
+</body>
+</html>

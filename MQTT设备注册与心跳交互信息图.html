@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT 设备管理：注册与心跳</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Brilliant Blues & Warm Accents -->
+    <!-- Application Structure Plan: The SPA is structured with a hero section, followed by a "Why MQTT" explanation. The core is an interactive horizontal flowchart detailing the registration and heartbeat process with clickable steps for details. A section outlines component responsibilities, and it concludes with a donut chart summarizing the benefits. This structure aims to guide the user through the advantages and step-by-step implementation of MQTT for device management in FL. -->
+    <!-- Visualization & Content Choices: 1. Core Process: Interactive Horizontal Flowchart (HTML/CSS + JS). Goal: Organize & Explain Process. Interaction: Clickable steps reveal detailed text. Justification: Visualizes sequential interaction clearly. NO SVG/Mermaid used. 2. Why MQTT: Feature List (HTML/CSS). Goal: Inform. Justification: Bullet points for quick readability of benefits. 3. Responsibilities: Card Layout (HTML/CSS). Goal: Inform. Justification: Categorizes roles for clarity. 4. Benefits: Donut Chart (Chart.js/Canvas). Goal: Inform (composition). Justification: Quantifies key advantages of using MQTT. Tooltips are configured and labels are wrapped as required. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .flow-step-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+            cursor: pointer;
+            position: relative;
+            background-color: #ffffff;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 2px solid transparent;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .flow-step-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .flow-step-card.active {
+            transform: translateY(-2px);
+            border-color: #2563eb;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+        .step-number {
+            position: absolute;
+            top: -1.25rem;
+            left: -1.25rem;
+            background-color: #2563eb;
+            color: white;
+            border-radius: 9999px;
+            height: 2.5rem;
+            width: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.25rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .details-panel {
+            transition: opacity 0.4s ease-in-out, max-height 0.4s ease-in-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .details-panel.show {
+            max-height: 1000px;
+            opacity: 1;
+        }
+        .flow-arrow-right {
+            font-size: 2.5rem;
+            color: #94a3b8;
+            font-weight: 300;
+            text-align: center;
+            margin: 0 1rem;
+        }
+        .flow-entity-header {
+            font-weight: 600;
+            font-size: 1.25rem;
+            color: #475569;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <main class="container mx-auto px-4 py-12 md:py-16">
+
+        <section id="hero" class="text-center mb-16">
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-slate-900">边缘设备管理：MQTT 注册与心跳</h1>
+            <h2 class="text-2xl md:text-3xl font-semibold text-blue-600 mb-6">确保联邦学习设备的实时在线状态</h2>
+            <p class="max-w-3xl mx-auto text-lg text-slate-600">
+                探索如何利用 MQTT 协议，高效且可靠地管理联邦学习中的边缘设备（Android/iOS）的注册、在线心跳和离线检测。
+            </p>
+        </section>
+
+        <section id="why-mqtt" class="mb-20">
+            <h3 class="text-3xl font-bold text-center mb-12 text-slate-800">为什么选择 MQTT？</h3>
+            <p class="text-center text-slate-600 max-w-3xl mx-auto mb-10">
+                MQTT (Message Queuing Telemetry Transport) 是一种轻量级的发布/订阅消息协议，专为低带宽、高延迟或不可靠网络环境下的物联网设备设计。这使其成为管理边缘设备连接的理想选择。
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-teal-500">
+                    <h4 class="text-xl font-bold mb-3 text-teal-700">🚀 轻量与高效</h4>
+                    <p class="text-slate-600">协议开销小，适合资源受限的移动/边缘设备和弱网络环境。</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-blue-500">
+                    <h4 class="text-xl font-bold mb-3 text-blue-700">🔄 发布/订阅模式</h4>
+                    <p class="text-slate-600">后端可灵活订阅设备状态主题，无需频繁轮询，实现事件驱动。</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-amber-500">
+                    <h4 class="text-xl font-bold mb-3 text-amber-700">💔 遗嘱消息 (LWT)</h4>
+                    <p class="text-slate-600">设备非正常断开连接时，Broker 自动发布离线通知，实现即时离线检测。</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="interactive-flow" class="mb-20">
+            <h3 class="text-3xl font-bold text-center mb-12 text-slate-800">设备注册与心跳交互流程</h3>
+
+            <div class="flex flex-col lg:flex-row items-center justify-center space-y-8 lg:space-y-0 lg:space-x-8">
+                <!-- Edge Device -->
+                <div class="flex flex-col items-center w-full lg:w-1/3">
+                    <div class="flow-entity-header text-green-700">边缘设备 (Android/iOS)</div>
+                    <div id="step-device-register" class="flow-step-card w-full">
+                        <span class="step-number">1</span>
+                        <h4 class="text-lg font-semibold text-slate-800">设备首次连接与注册</h4>
+                        <p class="mt-2 text-slate-600">设备向 API 网关发起注册请求，获取认证凭证。</p>
+                    </div>
+                    <div class="flow-arrow-down lg:hidden">↓</div>
+                </div>
+
+                <!-- API Gateway -->
+                <div class="hidden lg:flex flex-col items-center justify-center w-12 h-40">
+                    <div class="flow-arrow-right">→</div>
+                </div>
+                <div class="flex flex-col items-center w-full lg:w-1/3">
+                    <div class="flow-entity-header text-purple-700">API 网关 / 注册服务</div>
+                    <div id="step-mqtt-connect" class="flow-step-card w-full">
+                        <span class="step-number">2</span>
+                        <h4 class="text-lg font-semibold text-slate-800">MQTT 连接建立与遗嘱设置</h4>
+                        <p class="mt-2 text-slate-600">设备使用 MQTT 客户端库连接 Broker，配置遗嘱消息 (LWT)。</p>
+                    </div>
+                    <div class="flow-arrow-down lg:hidden">↓</div>
+                </div>
+
+                <!-- MQTT Broker -->
+                <div class="hidden lg:flex flex-col items-center justify-center w-12 h-40">
+                    <div class="flow-arrow-right">→</div>
+                </div>
+                <div class="flex flex-col items-center w-full lg:w-1/3">
+                    <div class="flow-entity-header text-blue-700">MQTT Broker</div>
+                    <div id="step-heartbeat-publish" class="flow-step-card w-full">
+                        <span class="step-number">3</span>
+                        <h4 class="text-lg font-semibold text-slate-800">心跳消息发布</h4>
+                        <p class="mt-2 text-slate-600">设备定期向 Broker 发布轻量级心跳消息。</p>
+                    </div>
+                    <div class="flow-arrow-down lg:hidden">↓</div>
+                </div>
+            </div>
+
+            <!-- Second row of flow (for subscription) -->
+            <div class="flex flex-col lg:flex-row items-center justify-center space-y-8 lg:space-y-0 lg:space-x-8 mt-8">
+                 <div class="hidden lg:flex flex-col items-center w-1/3"></div> <!-- Placeholder to align -->
+                 <div class="hidden lg:flex flex-col items-center justify-center w-12 h-40">
+                    <div class="flow-arrow-right transform rotate-180">→</div> <!-- Arrow pointing left -->
+                 </div>
+                <!-- Backend Service / Aggregator -->
+                <div class="flex flex-col items-center w-full lg:w-1/3">
+                    <div class="flow-entity-header text-red-700">后端服务 / 聚合服务器</div>
+                    <div id="step-backend-subscribe" class="flow-step-card w-full">
+                        <span class="step-number">4</span>
+                        <h4 class="text-lg font-semibold text-slate-800">后端服务订阅与状态更新</h4>
+                        <p class="mt-2 text-slate-600">后端订阅心跳/LWT 主题，实时更新设备在线状态。</p>
+                    </div>
+                    <div class="flow-arrow-down lg:hidden">↓</div>
+                </div>
+
+                <div class="hidden lg:flex flex-col items-center justify-center w-12 h-40">
+                     <div class="flow-arrow-right transform rotate-180">→</div> <!-- Placeholder arrow to align -->
+                </div>
+                <div class="hidden lg:flex flex-col items-center w-1/3"></div> <!-- Placeholder to align -->
+            </div>
+
+
+            <div id="details-panel" class="details-panel mt-12 bg-white p-8 rounded-xl shadow-xl border border-slate-200">
+                <h4 id="details-title" class="text-2xl font-bold mb-4 text-blue-700"></h4>
+                <div id="details-content" class="prose max-w-none text-slate-700"></div>
+            </div>
+        </section>
+
+        <section id="component-roles" class="mb-20">
+            <h3 class="text-3xl font-bold text-center mb-12 text-slate-800">各组件在 MQTT 管理中的职责</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-green-500">
+                    <h4 class="text-xl font-bold mb-3 text-green-700">边缘设备</h4>
+                    <ul class="list-disc list-inside space-y-2 text-slate-600">
+                        <li>发起注册，获取认证信息。</li>
+                        <li>使用 MQTT 客户端连接 Broker。</li>
+                        <li>配置并发送 LWT 消息。</li>
+                        <li>定期发布心跳消息到指定主题。</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-purple-500">
+                    <h4 class="text-xl font-bold mb-3 text-purple-700">API 网关 / 注册服务</h4>
+                    <ul class="list-disc list-inside space-y-2 text-slate-600">
+                        <li>处理设备的首次认证与注册请求。</li>
+                        <li>分发 MQTT 连接凭证。</li>
+                        <li>（可选）将注册成功信息转发给后端。</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-blue-500">
+                    <h4 class="text-xl font-bold mb-3 text-blue-700">MQTT Broker</h4>
+                    <ul class="list-disc list-inside space-y-2 text-slate-600">
+                        <li>管理设备连接与会话。</li>
+                        <li>接收、存储并分发心跳消息。</li>
+                        <li>在设备非正常断开时，自动发布 LWT 消息。</li>
+                    </ul>
+                </div>
+                 <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-red-500 md:col-span-3 lg:col-span-1 mx-auto w-full md:w-auto">
+                    <h4 class="text-xl font-bold mb-3 text-red-700">后端服务 / 聚合服务器</h4>
+                    <ul class="list-disc list-inside space-y-2 text-slate-600">
+                        <li>订阅 MQTT 心跳及状态主题。</li>
+                        <li>实时更新设备在线状态和健康信息。</li>
+                        <li>根据设备状态进行联邦学习任务调度。</li>
+                        <li>处理遗嘱消息，快速识别离线设备。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="benefits-chart">
+            <h3 class="text-3xl font-bold text-center mb-12 text-slate-800">MQTT 在设备管理中的主要优势</h3>
+            <div class="bg-white p-8 rounded-lg shadow-lg max-w-md mx-auto">
+                <p class="text-center text-slate-600 mb-6">MQTT 协议的特性使其成为联邦学习边缘设备管理的高效且可靠选择。</p>
+                <div class="h-80 w-full mx-auto chart-container">
+                    <canvas id="benefitsChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const detailsData = {
+            "step-device-register": {
+                title: "第 1 步：设备首次连接与注册",
+                content: `
+                    <p>当边缘设备（例如一部 Android 或 iOS 手机）首次启动并需要加入联邦学习网络时，它会向后端的 <strong>API 网关或专门的注册服务</strong>发起请求。</p>
+                    <p class="mt-2">此请求通常包含设备的唯一标识、类型、版本等信息，并可能需要进行身份认证。注册成功后，设备将获得参与后续通信（包括 MQTT 连接）所需的<strong>认证凭证</strong>或 Token。</p>
+                    <p class="mt-4 font-semibold">相关组件职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li><strong>边缘设备:</strong> 发起注册请求，接收并存储凭证。</li>
+                        <li><strong>API 网关/注册服务:</strong> 验证设备身份，处理注册逻辑，分发凭证。</li>
+                    </ul>
+                `
+            },
+            "step-mqtt-connect": {
+                title: "第 2 步：MQTT 连接建立与遗嘱设置",
+                content: `
+                    <p>设备注册成功并获取到必要凭证后，会使用<strong>MQTT 客户端库</strong>（如 Paho MQTT）与部署的 <strong>MQTT Broker</strong> 建立长连接。这是一个基于 TCP/IP 的持久连接，是后续心跳和消息传输的基础。</p>
+                    <p class="mt-2">在连接建立时，设备会配置一个重要的特性：<strong>遗嘱消息 (Last Will and Testament - LWT)</strong>。设备会指定一个 LWT 主题（例如 <code>/devices/&lt;device_id&gt;/status</code>）和一条消息（例如 <code>offline</code>）。如果设备非正常断开连接，MQTT Broker 将自动向该主题发布这条遗嘱消息，通知所有订阅者该设备已离线。</p>
+                    <p class="mt-4 font-semibold">相关组件职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li><strong>边缘设备:</strong> 建立 MQTT 连接，设置 LWT。</li>
+                        <li><strong>MQTT Broker:</strong> 接受连接，维护会话，并在必要时发布 LWT。</li>
+                    </ul>
+                `
+            },
+            "step-heartbeat-publish": {
+                title: "第 3 步：心跳消息发布",
+                content: `
+                    <p>一旦 MQTT 连接建立并稳定，边缘设备将开始定期向 <strong>MQTT Broker</strong> 发布心跳消息。这些消息非常轻量，通常只包含设备 ID 和一个时间戳，发布到预定义的心跳主题（例如 <code>/devices/&lt;device_id&gt;/heartbeat</code>）。</p>
+                    <p class="mt-2">心跳的频率可以根据需求和设备资源进行调整（例如每 30 秒或每分钟一次）。它的主要目的是主动告知后端服务设备仍然在线且活跃。</p>
+                    <p class="mt-4 font-semibold">相关组件职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li><strong>边缘设备:</strong> 定期构建并发布心跳消息。</li>
+                        <li><strong>MQTT Broker:</strong> 接收心跳消息，并将其分发给所有订阅了相应主题的后端服务。</li>
+                    </ul>
+                `
+            },
+            "step-backend-subscribe": {
+                title: "第 4 步：后端服务订阅与状态更新",
+                content: `
+                    <p>为了实时监控边缘设备的在线状态，<strong>后端服务</strong>（例如设备管理服务，或直接与聚合服务器集成的服务）会订阅 <strong>MQTT Broker</strong> 上的心跳主题和遗嘱主题（例如 <code>/devices/+/heartbeat</code> 和 <code>/devices/+/status</code>）。</p>
+                    <p class="mt-2">当收到心跳消息时，后端服务会更新设备在数据库中的“在线”状态和“最后活跃时间”。当收到遗嘱消息时，后端服务会立即将设备状态标记为“离线”或“异常”。</p>
+                    <p class="mt-2">这些实时更新的设备状态信息对于联邦学习的<strong>训练调度</strong>至关重要：聚合服务器可以根据这些信息，选择当前在线且健康的设备参与训练。</p>
+                    <p class="mt-4 font-semibold">相关组件职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li><strong>后端服务/聚合服务器:</strong> 订阅 MQTT 主题，实时处理接收到的消息，更新设备状态。</li>
+                        <li><strong>MQTT Broker:</strong> 将心跳和 LWT 消息分发给订阅的后端服务。</li>
+                    </ul>
+                `
+            }
+        };
+
+        const steps = document.querySelectorAll('.flow-step-card');
+        const detailsPanel = document.getElementById('details-panel');
+        const detailsTitle = document.getElementById('details-title');
+        const detailsContent = document.getElementById('details-content');
+        let activeStep = null;
+
+        steps.forEach(step => {
+            step.addEventListener('click', () => {
+                const stepId = step.id;
+
+                if (activeStep) {
+                    activeStep.classList.remove('active');
+                }
+
+                if (activeStep === step) {
+                    detailsPanel.classList.remove('show');
+                    activeStep = null;
+                } else {
+                    step.classList.add('active');
+                    activeStep = step;
+
+                    detailsTitle.textContent = detailsData[stepId].title;
+                    detailsContent.innerHTML = detailsData[stepId].content;
+                    detailsPanel.classList.add('show');
+                }
+            });
+        });
+
+        const benefitsCtx = document.getElementById('benefitsChart').getContext('2d');
+        const benefitsLabels = [
+            '轻量高效',
+            '实时在线感知',
+            '资源节约',
+            '快速离线检测',
+            ['训练调度', '优化']
+        ];
+
+        const tooltipTitleCallback = (tooltipItems) => {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            if (Array.isArray(label)) {
+                return label.join(' ');
+            }
+            return label;
+        };
+
+        new Chart(benefitsCtx, {
+            type: 'doughnut',
+            data: {
+                labels: benefitsLabels,
+                datasets: [{
+                    label: 'MQTT 在设备管理中的优势',
+                    data: [20, 20, 15, 25, 20], /* Example distribution */
+                    backgroundColor: [
+                        '#2563eb', /* blue-600 */
+                        '#f59e0b', /* amber-500 */
+                        '#0d9488', /* teal-600 */
+                        '#ef4444', /* red-500 */
+                        '#6d28d9'  /* violet-700 */
+                    ],
+                    borderColor: '#f8fafc',
+                    borderWidth: 4,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: {
+                                size: 14,
+                                family: "'Noto Sans SC', sans-serif"
+                            },
+                            padding: 20,
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                return data.labels.map((label, i) => {
+                                    const meta = chart.getDatasetMeta(0);
+                                    const style = data.datasets[0].backgroundColor[i];
+                                    return {
+                                        text: Array.isArray(label) ? label.join(' ') : label,
+                                        fillStyle: style,
+                                        strokeStyle: data.datasets[0].borderColor,
+                                        lineWidth: data.datasets[0].borderWidth,
+                                        hidden: isNaN(meta.data[i].parsed),
+                                        index: i
+                                    };
+                                });
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: tooltipTitleCallback,
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                    label += context.parsed + '%';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+    </script>
+
+</body>
+</html>

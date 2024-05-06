@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>精简版设备注册与状态管理时序图</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 800px; /* 保持精简后的最大宽度 */
+            overflow-x: auto;
+        }
+        .mermaid {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .mermaid .note {
+            fill: #fffbe6;
+            stroke: #ffe082;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>精简版设备注册与状态管理时序图</h1>
+        <div class="mermaid">
+            sequenceDiagram
+                participant EdgeDevice as 边缘设备
+                participant APIGateway as API 网关
+                participant RegionalServer as 区域聚合服务器
+                participant CentralServer as 中央服务器
+                participant PostgreSQL as PostgreSQL 数据库
+                participant RabbitMQ as RabbitMQ 消息队列
+
+                Note over EdgeDevice, PostgreSQL: 设备注册与初始连接
+
+                EdgeDevice->>APIGateway: 1. 设备注册请求 (ID, 能力)
+                APIGateway->>RegionalServer: 2. 转发注册
+                RegionalServer->>CentralServer: 3. 通知注册
+                CentralServer->>PostgreSQL: 4. 存储/更新设备信息
+                PostgreSQL-->>CentralServer: 5. 存储完成
+                CentralServer-->>RegionalServer: 6. 确认注册
+                RegionalServer-->>APIGateway: 7. 返回认证Token
+                APIGateway-->>EdgeDevice: 8. 注册成功
+
+                EdgeDevice->>RegionalServer: 9. MQTT长链接建立 (使用Token认证)
+                RegionalServer-->>EdgeDevice: 10. MQTT连接确认
+
+                loop MQTT 心跳保持长连接
+                    EdgeDevice-->>RegionalServer: 心跳
+                    RegionalServer-->>EdgeDevice: 心跳响应
+                end
+
+                Note over RegionalServer, CentralServer: 设备上下线事件发布 (RabbitMQ)
+
+                alt 设备状态变化 (上线/下线)
+                    RegionalServer->>RabbitMQ: 11. 发布设备状态事件 (至队列)
+                    RabbitMQ-->>CentralServer: 12. 接收设备状态事件
+                    CentralServer->>PostgreSQL: 13. 更新设备在线状态
+                    PostgreSQL-->>CentralServer: 14. 状态更新成功
+                end
+
+                Note over EdgeDevice, RegionalServer: 待命与任务下发
+
+                EdgeDevice->>RegionalServer: (MQTT订阅) 等待任务
+                RegionalServer->>EdgeDevice: (MQTT发布) 任务下发
+        </div>
+    </div>
+
+    <!-- Mermaid.js CDN (using standard script tag) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        // Initialize Mermaid after the content is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            mermaid.initialize({ startOnLoad: true });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,673 @@
+# docker-compose.yml - 分层联邦学习系统完整部署配置
+version: '3.8'
+
+services:
+  # ========== 中央服务器层 (Cloud Server Layer) ==========
+
+  # Flower Server - 联邦学习协调器
+  flower-server:
+    build:
+      context: ..
+      dockerfile: Dockerfile.flower-server
+    container_name: fl-flower-server
+    ports:
+      - "8080:8080"  # REST API
+      - "9092:9092"  # gRPC - 边缘服务器连接
+    environment:
+      - FL_SERVER_ADDRESS=0.0.0.0:9092
+      - FL_ROUNDS=50
+      - FL_MIN_EDGE_SERVERS=2
+      - FL_MIN_AVAILABLE_SERVERS=2
+      - AGGREGATION_STRATEGY=FedAvg
+      - PYTHONPATH=/app
+    volumes:
+      - ./models/global:/app/models
+      - ./logs/cloud:/app/logs
+      - ./configs:/app/configs
+    networks:
+      - cloud-network
+      - edge-network
+    restart: unless-stopped
+
+  # 模型聚合服务
+  model-aggregator:
+    build:
+      context: ..
+      dockerfile: Dockerfile.aggregator
+    container_name: fl-model-aggregator
+    depends_on:
+      - flower-server
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://fl_user:fl_password@postgres:5432/fl_db
+      - AGGREGATION_ALGORITHMS=FedAvg,FedProx,FedNova
+      - MODEL_STORAGE_PATH=/app/models
+    volumes:
+      - ./models:/app/models
+      - ./logs/cloud:/app/logs
+    networks:
+      - cloud-network
+    restart: unless-stopped
+
+  # 数据存储服务
+  data-storage:
+    build:
+      context: ..
+      dockerfile: Dockerfile.storage
+    container_name: fl-data-storage
+    ports:
+      - "8083:8083"
+    environment:
+      - DATABASE_URL=postgresql://fl_user:fl_password@postgres:5432/fl_db
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin123
+    depends_on:
+      - postgres
+      - minio
+    volumes:
+      - ./data/global:/app/data
+    networks:
+      - cloud-network
+    restart: unless-stopped
+
+  # 任务调度服务
+  task-scheduler:
+    build:
+      context: ..
+      dockerfile: Dockerfile.scheduler
+    container_name: fl-task-scheduler
+    ports:
+      - "8084:8084"
+    environment:
+      - DATABASE_URL=postgresql://fl_user:fl_password@postgres:5432/fl_db
+      - REDIS_URL=redis://redis:6379/0
+      - SCHEDULER_INTERVAL=300  # 5分钟
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - cloud-network
+    restart: unless-stopped
+
+  # 配置管理服务
+  config-manager:
+    build:
+      context: ..
+      dockerfile: Dockerfile.config
+    container_name: fl-config-manager
+    ports:
+      - "8085:8085"
+    environment:
+      - DATABASE_URL=postgresql://fl_user:fl_password@postgres:5432/fl_db
+      - CONFIG_STORAGE_PATH=/app/configs
+    volumes:
+      - ./configs:/app/configs
+    depends_on:
+      - postgres
+    networks:
+      - cloud-network
+    restart: unless-stopped
+
+  # ========== 区域聚合服务器层 (Edge Server Layer) ==========
+
+  # 区域代理节点 - 华北
+  edge-server-north:
+    build:
+      context: ..
+      dockerfile: Dockerfile.edge-server
+    container_name: fl-edge-server-north
+    ports:
+      - "9093:9093"  # 设备连接端口
+      - "8090:8090"  # 管理端口
+    environment:
+      - EDGE_REGION=north-china
+      - CLOUD_SERVER_ADDRESS=flower-server:9092
+      - EDGE_SERVER_ADDRESS=0.0.0.0:9093
+      - MAX_DEVICES=100
+      - AGGREGATION_THRESHOLD=5
+      - PYTHONPATH=/app
+    volumes:
+      - ./models/edge/north:/app/models
+      - ./logs/edge/north:/app/logs
+      - ./data/edge/north:/app/data
+    depends_on:
+      - flower-server
+    networks:
+      - edge-network
+      - device-network-north
+    restart: unless-stopped
+
+  # 区域代理节点 - 华南
+  edge-server-south:
+    build:
+      context: ..
+      dockerfile: Dockerfile.edge-server
+    container_name: fl-edge-server-south
+    ports:
+      - "9094:9093"
+      - "8091:8090"
+    environment:
+      - EDGE_REGION=south-china
+      - CLOUD_SERVER_ADDRESS=flower-server:9092
+      - EDGE_SERVER_ADDRESS=0.0.0.0:9093
+      - MAX_DEVICES=100
+      - AGGREGATION_THRESHOLD=5
+      - PYTHONPATH=/app
+    volumes:
+      - ./models/edge/south:/app/models
+      - ./logs/edge/south:/app/logs
+      - ./data/edge/south:/app/data
+    depends_on:
+      - flower-server
+    networks:
+      - edge-network
+      - device-network-south
+    restart: unless-stopped
+
+  # 分布式聚合服务
+  distributed-aggregator-north:
+    build:
+      context: ..
+      dockerfile: Dockerfile.distributed-agg
+    container_name: fl-dist-agg-north
+    environment:
+      - EDGE_SERVER_ADDRESS=edge-server-north:8090
+      - REGION=north-china
+      - LOCAL_AGGREGATION_ROUNDS=3
+    depends_on:
+      - edge-server-north
+    networks:
+      - device-network-north
+    restart: unless-stopped
+
+  distributed-aggregator-south:
+    build:
+      context: ..
+      dockerfile: Dockerfile.distributed-agg
+    container_name: fl-dist-agg-south
+    environment:
+      - EDGE_SERVER_ADDRESS=edge-server-south:8090
+      - REGION=south-china
+      - LOCAL_AGGREGATION_ROUNDS=3
+    depends_on:
+      - edge-server-south
+    networks:
+      - device-network-south
+    restart: unless-stopped
+
+  # 设备注册管理
+  device-registry-north:
+    build:
+      context: ..
+      dockerfile: Dockerfile.device-registry
+    container_name: fl-device-registry-north
+    ports:
+      - "8086:8086"
+    environment:
+      - EDGE_SERVER_ADDRESS=edge-server-north:8090
+      - REGION=north-china
+      - DATABASE_URL=postgresql://fl_user:fl_password@postgres:5432/fl_db
+    depends_on:
+      - postgres
+      - edge-server-north
+    networks:
+      - device-network-north
+      - cloud-network
+    restart: unless-stopped
+
+  device-registry-south:
+    build:
+      context: ..
+      dockerfile: Dockerfile.device-registry
+    container_name: fl-device-registry-south
+    ports:
+      - "8087:8086"
+    environment:
+      - EDGE_SERVER_ADDRESS=edge-server-south:8090
+      - REGION=south-china
+      - DATABASE_URL=postgresql://fl_user:fl_password@postgres:5432/fl_db
+    depends_on:
+      - postgres
+      - edge-server-south
+    networks:
+      - device-network-south
+      - cloud-network
+    restart: unless-stopped
+
+  # 模型缓存服务
+  model-cache-north:
+    image: redis:7-alpine
+    container_name: fl-model-cache-north
+    ports:
+      - "6380:6379"
+    volumes:
+      - model_cache_north:/data
+    networks:
+      - device-network-north
+    restart: unless-stopped
+
+  model-cache-south:
+    image: redis:7-alpine
+    container_name: fl-model-cache-south
+    ports:
+      - "6381:6379"
+    volumes:
+      - model_cache_south:/data
+    networks:
+      - device-network-south
+    restart: unless-stopped
+
+  # ========== 边缘设备层模拟器 (Edge Device Layer Simulators) ==========
+
+  # Android设备模拟器
+  android-device-sim-1:
+    build:
+      context: ..
+      dockerfile: Dockerfile.android-sim
+    container_name: android-device-1
+    environment:
+      - DEVICE_TYPE=android
+      - DEVICE_ID=android_001
+      - EDGE_SERVER_ADDRESS=edge-server-north:9093
+      - LOCAL_EPOCHS=5
+      - BATCH_SIZE=32
+    volumes:
+      - ./data/devices/android1:/app/data
+    depends_on:
+      - edge-server-north
+    networks:
+      - device-network-north
+    restart: "no"
+    profiles:
+      - simulation
+
+  android-device-sim-2:
+    build:
+      context: ..
+      dockerfile: Dockerfile.android-sim
+    container_name: android-device-2
+    environment:
+      - DEVICE_TYPE=android
+      - DEVICE_ID=android_002
+      - EDGE_SERVER_ADDRESS=edge-server-south:9093
+      - LOCAL_EPOCHS=5
+      - BATCH_SIZE=32
+    volumes:
+      - ./data/devices/android2:/app/data
+    depends_on:
+      - edge-server-south
+    networks:
+      - device-network-south
+    restart: "no"
+    profiles:
+      - simulation
+
+  # iOS设备模拟器
+  ios-device-sim-1:
+    build:
+      context: ..
+      dockerfile: Dockerfile.ios-sim
+    container_name: ios-device-1
+    environment:
+      - DEVICE_TYPE=ios
+      - DEVICE_ID=ios_001
+      - EDGE_SERVER_ADDRESS=edge-server-north:9093
+      - LOCAL_EPOCHS=5
+      - BATCH_SIZE=32
+    volumes:
+      - ./data/devices/ios1:/app/data
+    depends_on:
+      - edge-server-north
+    networks:
+      - device-network-north
+    restart: "no"
+    profiles:
+      - simulation
+
+  # 本地训练引擎模拟器
+  local-training-engine-1:
+    build:
+      context: ..
+      dockerfile: Dockerfile.training-engine
+    container_name: training-engine-1
+    environment:
+      - ENGINE_TYPE=tensorflow_lite
+      - DEVICE_ID=tflite_001
+      - EDGE_SERVER_ADDRESS=edge-server-north:9093
+      - SUPPORTED_MODELS=mobilenet,efficientnet
+    volumes:
+      - ./data/devices/tflite1:/app/data
+    depends_on:
+      - edge-server-north
+    networks:
+      - device-network-north
+    restart: "no"
+    profiles:
+      - simulation
+
+  local-training-engine-2:
+    build:
+      context: ..
+      dockerfile: Dockerfile.training-engine
+    container_name: training-engine-2
+    environment:
+      - ENGINE_TYPE=pytorch_mobile
+      - DEVICE_ID=pytorch_001
+      - EDGE_SERVER_ADDRESS=edge-server-south:9093
+      - SUPPORTED_MODELS=resnet,mobilenet
+    volumes:
+      - ./data/devices/pytorch1:/app/data
+    depends_on:
+      - edge-server-south
+    networks:
+      - device-network-south
+    restart: "no"
+    profiles:
+      - simulation
+
+  # 本地数据管理模拟器
+  local-data-manager-1:
+    build:
+      context: ..
+      dockerfile: Dockerfile.data-manager
+    container_name: data-manager-1
+    environment:
+      - DEVICE_ID=datamgr_001
+      - EDGE_SERVER_ADDRESS=edge-server-north:9093
+      - DATA_TYPES=image,text,sensor
+      - PRIVACY_LEVEL=high
+    volumes:
+      - ./data/devices/datamgr1:/app/data
+    depends_on:
+      - edge-server-north
+    networks:
+      - device-network-north
+    restart: "no"
+    profiles:
+      - simulation
+
+  # 智能代理模拟器
+  intelligent-agent-1:
+    build:
+      context: ..
+      dockerfile: Dockerfile.agent
+    container_name: intelligent-agent-1
+    environment:
+      - AGENT_TYPE=adaptive
+      - DEVICE_ID=agent_001
+      - EDGE_SERVER_ADDRESS=edge-server-north:9093
+      - LEARNING_RATE=0.01
+      - ADAPTATION_STRATEGY=performance_based
+    volumes:
+      - ./data/devices/agent1:/app/data
+    depends_on:
+      - edge-server-north
+    networks:
+      - device-network-north
+    restart: "no"
+    profiles:
+      - simulation
+
+  # ========== 支持服务 (Supporting Services) ==========
+
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: fl-postgres
+    environment:
+      - POSTGRES_DB=fl_db
+      - POSTGRES_USER=fl_user
+      - POSTGRES_PASSWORD=fl_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - cloud-network
+    restart: unless-stopped
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: fl-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - cloud-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # MinIO对象存储
+  minio:
+    image: minio/minio:latest
+    container_name: fl-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin123
+    volumes:
+      - minio_data:/data
+    networks:
+      - cloud-network
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+
+  # 监控面板
+  fl-dashboard:
+    build:
+      context: ..
+      dockerfile: Dockerfile.dashboard
+    container_name: fl-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://fl_user:fl_password@postgres:5432/fl_db
+      - REDIS_URL=redis://redis:6379/0
+      - FLOWER_SERVER_URL=http://flower-server:8080
+    depends_on:
+      - postgres
+      - redis
+      - flower-server
+    networks:
+      - cloud-network
+    restart: unless-stopped
+
+  # API网关
+  api-gateway:
+    image: nginx:alpine
+    container_name: fl-api-gateway
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - flower-server
+      - fl-dashboard
+    networks:
+      - cloud-network
+      - edge-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+  model_cache_north:
+    driver: local
+  model_cache_south:
+    driver: local
+
+networks:
+  # 云端网络 - 中央服务器层内部通信
+  cloud-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+  # 边缘网络 - 云端与边缘服务器通信
+  edge-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+  # 设备网络 - 华北区域
+  device-network-north:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+
+  # 设备网络 - 华南区域
+  device-network-south:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/16
+
+---
+
+# Dockerfile.flower-server - Flower服务器
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    curl build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements/cloud-server.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY cloud_server/flower_server/ ./flower_server/
+COPY common/ ./common/
+
+EXPOSE 8080 9092
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+CMD ["python", "-m", "flower_server.main"]
+
+---
+
+# Dockerfile.edge-server - 边缘服务器
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements/edge-server.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY edge_server/ ./edge_server/
+COPY common/ ./common/
+
+EXPOSE 9093 8090
+
+CMD ["python", "-m", "edge_server.main"]
+
+---
+
+# requirements/cloud-server.txt
+flwr[simulation]==1.7.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.4.0
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+redis>=5.0.0
+celery>=5.3.0
+numpy>=1.24.0
+torch>=2.1.0
+tensorflow>=2.13.0
+
+---
+
+# requirements/edge-server.txt
+flwr==1.7.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.4.0
+redis>=5.0.0
+numpy>=1.24.0
+torch>=2.1.0
+tensorflow>=2.13.0
+grpcio>=1.59.0
+protobuf>=4.24.0
+
+---
+
+# .env
+# 中央服务器层配置
+FL_SERVER_ADDRESS=0.0.0.0:9092
+FL_ROUNDS=50
+FL_MIN_EDGE_SERVERS=2
+AGGREGATION_STRATEGY=FedAvg
+
+# 边缘服务器层配置
+EDGE_AGGREGATION_ROUNDS=3
+MAX_DEVICES_PER_EDGE=100
+DEVICE_SELECTION_STRATEGY=random
+
+# 数据库配置
+POSTGRES_DB=fl_db
+POSTGRES_USER=fl_user
+POSTGRES_PASSWORD=fl_password
+DATABASE_URL=postgresql://fl_user:fl_password@postgres:5432/fl_db
+
+# 缓存配置
+REDIS_URL=redis://redis:6379/0
+
+# 存储配置
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin123
+MINIO_ENDPOINT=minio:9000
+
+
+
+三层架构详解
+🔵 中央服务器层 (Cloud Server Layer)
+
+Flower Server: 联邦学习协调器，管理全局训练流程
+模型聚合: 实现FedAvg等聚合算法，融合边缘服务器上传的模型
+数据存储: 管理全局模型、训练历史和元数据
+任务调度: 智能分配训练任务给各个区域
+配置管理: 统一管理系统配置和超参数
+
+🟣 区域聚合服务器层 (Edge Server Layer)
+
+区域代理节点: 华北/华南区域服务器，减少网络延迟
+分布式聚合: 先在区域内聚合，再上传到中央服务器
+设备注册管理: 管理区域内的移动设备连接和认证
+模型缓存: 缓存常用模型，加速设备下载速度
+
+🟢 边缘设备层 (Edge Device Layer)
+
+Android设备: 移动端训练客户端
+iOS设备: 苹果生态训练客户端
+本地训练引擎: TensorFlow Lite / PyTorch Mobile
+本地数据管理: 设备端数据隐私保护
+智能代理: 自适应学习策略
+
+🔵 支持服务 (Supporting Services)
+PostgreSQL: 中央服务器数据库
+Redis: 中央服务器缓存
+MinIO: 中央服务器对象存储
+Flower Dashboard: 中央服务器监控面板
+API Gateway: 中央服务器API网关

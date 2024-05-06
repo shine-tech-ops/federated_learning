@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flower 联邦学习运维架构</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #003f5c;
+        }
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 40vh;
+            width: 100%;
+            max-width: 500px;
+            max-height: 400px;
+        }
+        .flowchart-node {
+            background-color: #374c80;
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #7a5195;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .flowchart-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 60px;
+            color: #ffa600;
+        }
+        .flowchart-arrow::after {
+            content: '▼';
+            font-size: 2rem;
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-15px);
+            }
+            60% {
+                transform: translateY(-8px);
+            }
+        }
+        .flowchart-layer-label {
+            font-weight: bold;
+            color: #ffc425;
+            margin-bottom: 0.5rem;
+            text-align: left;
+            width: 100%;
+            padding-left: 0.5rem;
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <div class="container mx-auto p-4 sm:p-8">
+
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Flower 联邦学习运维架构</h1>
+            <p class="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">一个用于生产环境的、可扩展且可靠的联邦学习系统，集成了现代运维组件。</p>
+        </header>
+
+        <main>
+            <section id="core-components" class="mb-16">
+                <h2 class="text-3xl font-bold text-center text-white mb-8">核心组件：三层架构</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 text-center">
+                        <div class="text-6xl mb-4">☁️</div>
+                        <h3 class="text-2xl font-semibold text-white mb-2">中央服务器</h3>
+                        <p class="text-gray-300">联邦学习的最高层协调者。它负责全局任务的发布、聚合服务器的管理，并对来自各聚合服务器的全局模型进行最终汇总，维护最终的全局模型版本。</p>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 text-center">
+                        <div class="text-6xl mb-4">📊</div>
+                        <h3 class="text-2xl font-semibold text-white mb-2">聚合服务器</h3>
+                        <p class="text-gray-300">作为中央服务器和边缘节点之间的中间层。它接收中央服务器的任务，分发给所管辖的边缘节点，并从这些边缘节点收集模型更新进行局部聚合，再将聚合结果汇报给中央服务器。</p>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 text-center">
+                        <div class="text-6xl mb-4">📱/💻</div>
+                        <h3 class="text-2xl font-semibold text-white mb-2">边缘节点</h3>
+                        <p class="text-gray-300">位于数据源侧的分布式终端。它们在本地私有数据上执行模型训练，并将局部模型更新（而非原始数据）安全地发送给其对应的聚合服务器。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="infrastructure" class="mb-16">
+                <h2 class="text-3xl font-bold text-center text-white mb-8">支撑基础设施</h2>
+                <p class="text-center text-gray-300 max-w-3xl mx-auto mb-10">为了实现系统的可扩展性、可靠性和高性能，Flower核心组件由一套强大的基础设施提供支持。下面的雷达图直观地展示了每个组件在系统不同职责（模型与数据持久化、实时任务通信、状态管理、性能加速、元数据与审计）中的相对重要性和贡献度。</p>
+                <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6">
+                    <div class="chart-container mx-auto">
+                        <canvas id="infraRadarChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section id="detailed-infra" class="mb-16">
+                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 flex flex-col items-center text-center">
+                        <div class="text-5xl mb-4">📨</div>
+                        <h3 class="text-xl font-semibold text-white mb-2">消息队列 (MQ)</h3>
+                        <p class="text-gray-300">作为异步通信的核心，消息队列负责在中央服务器、聚合服务器和边缘节点之间传递训练任务和模型更新。它解耦了生产者和消费者，有效处理高并发场景，确保任务的可靠分发和结果的顺序收集。</p>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 flex flex-col items-center text-center">
+                        <div class="text-5xl mb-4">⚡️</div>
+                        <h3 class="text-xl font-semibold text-white mb-2">缓存 (Cache)</h3>
+                        <p class="text-gray-300">缓存用于快速存取频繁访问的数据，显著提升系统响应速度。它通常存储最新的全局模型、活跃客户端（边缘节点）的临时状态信息以及常用的配置参数，减少对后端数据库或文件存储的直接访问压力。</p>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 flex flex-col items-center text-center">
+                        <div class="text-5xl mb-4">📦</div>
+                        <h3 class="text-xl font-semibold text-white mb-2">文件存储 (File Storage)</h3>
+                        <p class="text-gray-300">文件存储系统用于持久化保存大型二进制数据和非结构化数据。这包括但不限于联邦学习的初始模型、每一轮聚合后生成的全局模型版本、客户端上传的训练日志以及其他大型配置文件。它提供了高可靠性、高吞吐量的数据存储能力。</p>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 flex flex-col items-center text-center">
+                        <div class="text-5xl mb-4">🗃️</div>
+                        <h3 class="text-xl font-semibold text-white mb-2">数据库 (Database)</h3>
+                        <p class="text-gray-300">数据库是管理结构化数据和系统状态的基石。它存储联邦学习的所有元数据，如注册客户端和聚合服务器的详细信息、每次训练任务的执行记录、全局模型的性能指标、超参数配置以及系统运行日志和审计数据，确保数据一致性和可查询性。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="flow" class="mb-16">
+                <h2 class="text-3xl font-bold text-center text-white mb-8">架构组件交互流：三层协作</h2>
+                <p class="text-center text-gray-300 max-w-3xl mx-auto mb-10">联邦学习的每个轮次都遵循一个精密的交互流程，确保数据隐私的同时实现模型协作训练。下面的流程图展示了从边缘节点注册到模型最终聚合的关键步骤，以及中央服务器、聚合服务器和边缘节点，与各个基础设施组件在其中扮演的精确角色。</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                    <!-- 左侧流程步骤 -->
+                    <div class="md:col-span-1 flex flex-col items-center">
+                        <div class="flowchart-layer-label">边缘节点层</div>
+                        <div class="flowchart-node w-full">1. 边缘节点注册</div>
+                        <div class="flowchart-arrow"></div>
+                        <div class="flowchart-node w-full">2. 本地训练与上传</div>
+                        <div class="flowchart-arrow"></div>
+                        <div class="flowchart-layer-label">聚合服务器层</div>
+                        <div class="flowchart-node w-full">3. 聚合服务器任务接收与分发</div>
+                        <div class="flowchart-arrow"></div>
+                        <div class="flowchart-node w-full">4. 局部模型聚合</div>
+                        <div class="flowchart-arrow"></div>
+                        <div class="flowchart-layer-label">中央服务器层</div>
+                        <div class="flowchart-node w-full">5. 全局任务发布与最终聚合</div>
+                    </div>
+
+                    <!-- 右侧详细说明 -->
+                    <div class="md:col-span-2 space-y-4">
+                        <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 min-h-[100px]">
+                            <h4 class="font-bold text-lg text-white mb-2">1. 边缘节点注册</h4>
+                            <p class="text-gray-300">新边缘节点启动，向其所属的 **聚合服务器** 发起注册请求。聚合服务器接收并处理这些请求，将边缘节点信息记录到 <strong class="text-[#ffa600]">数据库</strong> 中。同时，边缘节点的活跃状态可能被缓存到 <strong class="text-[#ffa600]">缓存</strong> 系统，以便快速管理。</p>
+                        </div>
+                        <div class="h-[60px]"></div>
+                        <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 min-h-[100px]">
+                            <h4 class="font-bold text-lg text-white mb-2">2. 本地训练与上传</h4>
+                            <p class="text-gray-300">边缘节点从 **聚合服务器** （可能通过 <strong class="text-[#ffa600]">消息队列</strong>）接收训练任务。在本地私有数据集上执行模型训练，生成局部模型更新。训练完成后，这些更新通过 <strong class="text-[#ffa600]">消息队列</strong> 安全地推送回对应的 **聚合服务器**。</p>
+                        </div>
+                        <div class="h-[60px]"></div>
+                        <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 min-h-[100px]">
+                            <h4 class="font-bold text-lg text-white mb-2">3. 聚合服务器任务接收与分发</h4>
+                            <p class="text-gray-300">**聚合服务器** 从 **中央服务器**（可能通过 <strong class="text-[#ffa600]">消息队列</strong>）接收全局训练任务和当前全局模型。它会从 <strong class="text-[#ffa600]">文件存储</strong> 加载模型或从 <strong class="text-[#ffa600]">缓存</strong> 获取。然后，聚合服务器将这些任务分发给其管辖的、满足条件的 **边缘节点**。</p>
+                        </div>
+                        <div class="h-[60px]"></div>
+                        <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 min-h-[100px]">
+                            <h4 class="font-bold text-lg text-white mb-2">4. 局部模型聚合</h4>
+                            <p class="text-gray-300">**聚合服务器** 从 <strong class="text-[#ffa600]">消息队列</strong> 收集其所有边缘节点上传的局部模型更新。一旦收集完成或达到聚合条件，聚合服务器执行局部模型聚合算法，生成一个区域性的聚合模型。这个局部聚合模型随后通过 <strong class="text-[#ffa600]">消息队列</strong> 发送给 **中央服务器**。</p>
+                        </div>
+                        <div class="h-[60px]"></div>
+                        <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6 min-h-[100px]">
+                            <h4 class="font-bold text-lg text-white mb-2">5. 全局任务发布与最终聚合</h4>
+                            <p class="text-gray-300">**中央服务器** 从 <strong class="text-[#ffa600]">消息队列</strong> 接收所有 **聚合服务器** 提交的局部聚合模型。中央服务器执行最终的全局模型聚合，生成最新的全局模型。此模型会立即存储到 <strong class="text-[#ffa600]">文件存储</strong> 和 <strong class="text-[#ffa600]">缓存</strong>。模型元数据、训练轮次信息等记录到 <strong class="text-[#ffa600]">数据库</strong>。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="performance" class="mb-16">
+                <h2 class="text-3xl font-bold text-center text-white mb-8">全局模型性能演进</h2>
+                 <p class="text-center text-gray-300 max-w-3xl mx-auto mb-10">联邦学习的核心目标是通过多轮协作训练，持续提升全局模型的性能。下面的折线图模拟了模型准确率随着聚合轮次的增加而稳步提升的过程，展示了系统在持续学习中的成效。</p>
+                <div class="bg-white/10 backdrop-blur-sm rounded-lg shadow-2xl p-6">
+                    <div class="chart-container mx-auto">
+                        <canvas id="performanceLineChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section id="ops-considerations">
+                <h2 class="text-3xl font-bold text-center text-white mb-8">其他运维考量</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <h3 class="font-semibold text-lg text-white">负载均衡</h3>
+                        <p class="text-sm text-gray-300">通过负载均衡器高效分发边缘节点连接到聚合服务器，以及聚合服务器连接到中央服务器，确保系统在高并发下的稳定性和可用性。</p>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <h3 class="font-semibold text-lg text-white">监控与报警</h3>
+                        <p class="text-sm text-gray-300">对所有组件（中央服务器、聚合服务器、边缘节点、消息队列、数据库、文件存储）进行实时性能监控和健康检查，并配置自动化报警，以便及时发现和解决问题。</p>
+                    </div>
+                     <div class="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <h3 class="font-semibold text-lg text-white">CI/CD</h3>
+                        <p class="text-sm text-gray-300">利用持续集成/持续部署管道实现系统部署、升级、配置更新和版本回滚的自动化，提高运维效率和系统稳定性。</p>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <h3 class="font-semibold text-lg text-white">网络与安全</h3>
+                        <p class="text-sm text-gray-300">实施严格的网络安全策略，包括防火墙、VPN、TLS/SSL 加密通信、身份认证和访问控制（如OAuth），确保数据传输和存储的机密性、完整性和可用性。</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center mt-16 pt-8 border-t border-white/20">
+            <p class="text-gray-400">&copy; 2025 Flower 联邦学习架构分析。保留所有权利。</p>
+        </footer>
+
+    </div>
+
+    <script>
+        const wrapLabel = (label, maxWidth) => {
+            const words = label.split(' ');
+            const lines = [];
+            let currentLine = '';
+            for (const word of words) {
+                if ((currentLine + ' ' + word).length > maxWidth) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = currentLine ? currentLine + ' ' + word : word;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        };
+
+        const tooltipTitleCallback = (tooltipItems) => {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            if (Array.isArray(label)) {
+                return label.join(' ');
+            }
+            return label;
+        };
+
+        const ctxRadar = document.getElementById('infraRadarChart');
+        new Chart(ctxRadar, {
+            type: 'radar',
+            data: {
+                labels: ['模型与数据持久化', '实时任务通信', '状态管理', '性能加速', '元数据与审计'],
+                datasets: [{
+                    label: '数据库',
+                    data: [4, 1, 5, 2, 5],
+                    backgroundColor: 'rgba(239, 86, 117, 0.4)',
+                    borderColor: '#ef5675',
+                    pointBackgroundColor: '#ef5675'
+                }, {
+                    label: '文件存储',
+                    data: [5, 1, 2, 1, 3],
+                    backgroundColor: 'rgba(255, 118, 74, 0.4)',
+                    borderColor: '#ff764a',
+                    pointBackgroundColor: '#ff764a'
+                }, {
+                    label: '消息队列',
+                    data: [1, 5, 3, 3, 2],
+                    backgroundColor: 'rgba(122, 81, 149, 0.4)',
+                    borderColor: '#7a5195',
+                    pointBackgroundColor: '#7a5195'
+                }, {
+                    label: '缓存',
+                    data: [2, 2, 4, 5, 1],
+                    backgroundColor: 'rgba(255, 166, 0, 0.4)',
+                    borderColor: '#ffa600',
+                    pointBackgroundColor: '#ffa600'
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: { color: 'rgba(255, 255, 255, 0.2)' },
+                        grid: { color: 'rgba(255, 255, 255, 0.2)' },
+                        pointLabels: { color: 'white', font: { size: 12 } },
+                        ticks: {
+                            color: 'white',
+                            backdropColor: 'transparent',
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: 'white'
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: tooltipTitleCallback
+                        }
+                    }
+                }
+            }
+        });
+
+        const ctxLine = document.getElementById('performanceLineChart');
+        new Chart(ctxLine, {
+            type: 'line',
+            data: {
+                labels: ['Round 1', 'Round 2', 'Round 3', 'Round 4', 'Round 5', 'Round 6', 'Round 7'],
+                datasets: [{
+                    label: '全局模型准确率',
+                    data: [0.65, 0.72, 0.78, 0.82, 0.85, 0.87, 0.89],
+                    fill: true,
+                    backgroundColor: 'rgba(188, 80, 144, 0.3)',
+                    borderColor: '#bc5090',
+                    tension: 0.3,
+                    pointBackgroundColor: '#bc5090',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#bc5090'
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        ticks: { color: 'white' }
+                    },
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        ticks: { color: 'white' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: 'white'
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: tooltipTitleCallback
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

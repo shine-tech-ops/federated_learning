@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>联邦学习系统运维架构图</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 2rem;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            font-size: 2.2rem;
+            margin-bottom: 2rem;
+        }
+        .architecture {
+            display: flex;
+            flex-direction: column;
+            gap: 4rem;
+            align-items: center;
+            margin-top: 2rem;
+        }
+        .layer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1200px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .layer-title {
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            font-size: 1.6rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .components {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1.5rem;
+            width: 100%;
+        }
+        .component {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 180px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        .component:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+        .component-tooltip {
+            position: absolute;
+            background-color: #333;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            display: none;
+            z-index: 1000;
+            top: -120%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .component:hover .component-tooltip {
+            display: block;
+        }
+        .connection {
+            position: absolute;
+            background-color: #333;
+            z-index: -1;
+        }
+        /* 各层样式 */
+        .central-server {
+            background-color: #e3f2fd;
+            border: 2px solid #90caf9;
+        }
+        .central-server .component {
+            background-color: #bbdefb;
+            border: 2px solid #64b5f6;
+        }
+        .region-aggregator {
+            background-color: #ede7f6;
+            border: 2px solid #b39ddb;
+        }
+        .region-aggregator .component {
+            background-color: #d1c4e9;
+            border: 2px solid #9575cd;
+        }
+        .edge-device {
+            background-color: #e8f5e9;
+            border: 2px solid #a5d6a7;
+        }
+        .edge-device .component {
+            background-color: #c8e6c9;
+            border: 2px solid #81c784;
+        }
+        .support-service {
+            background-color: #fff3e0;
+            border: 2px solid #ffb74d;
+        }
+        .support-service .component {
+            background-color: #ffe0b2;
+            border: 2px solid #ffa726;
+        }
+        /* 区域分组样式 */
+        .region-group {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            width: 100%;
+            justify-content: space-around;
+        }
+        .region {
+            padding: 1.5rem;
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            flex: 1;
+            min-width: 300px;
+        }
+        .region-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+        /* 优化连接线样式 */
+        .connector-line {
+            position: absolute;
+            width: 2px;
+            background-color: #2196f3;
+            z-index: -1;
+            opacity: 0.8;
+            border-radius: 1px;
+            transition: opacity 0.2s ease;
+        }
+        .connector-line:hover {
+            opacity: 1;
+        }
+        .horizontal-line {
+            height: 2px;
+            background-color: #2196f3;
+            opacity: 0.8;
+            border-radius: 1px;
+            transition: opacity 0.2s ease;
+        }
+        .horizontal-line:hover {
+            opacity: 1;
+        }
+        /* 数据流向样式 */
+        .data-flow {
+            position: absolute;
+            z-index: -1;
+        }
+        .flow-label {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            white-space: nowrap;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <h1>联邦学习系统运维架构图</h1>
+    <div class="architecture">
+        <!-- 中央服务器层 -->
+        <div class="layer central-server" id="central-server">
+            <div class="layer-title">🔵 中央服务器层</div>
+            <div class="components">
+                <div class="component">
+                    Flower Server: 联邦学习协调器
+                    <div class="component-tooltip">管理全局训练流程，协调各组件工作</div>
+                </div>
+                <div class="component">
+                    模型聚合: FedAvg等算法
+                    <div class="component-tooltip">实现 FedAvg 等聚合算法，融合边缘服务器上传的模型</div>
+                </div>
+                <div class="component">
+                    数据存储: 全局模型、元数据
+                    <div class="component-tooltip">管理全局模型、训练历史和元数据</div>
+                </div>
+                <div class="component">
+                    任务调度: 分配训练任务
+                    <div class="component-tooltip">智能分配训练任务给各个区域</div>
+                </div>
+                <div class="component">
+                    配置管理: 系统配置
+                    <div class="component-tooltip">统一管理系统配置和超参数</div>
+                </div>
+            </div>
+        </div>
+        <!-- 区域聚合服务器层 -->
+        <div class="layer region-aggregator" id="region-aggregator">
+            <div class="layer-title">🟣 区域聚合服务器层</div>
+            <div class="region-group">
+                <div class="region">
+                    <div class="region-title">华北区域</div>
+                    <div class="components">
+                        <div class="component">
+                            区域代理节点 - 华北
+                            <div class="component-tooltip">减少华北区域网络延迟，代理区域内通信</div>
+                        </div>
+                        <div class="component">
+                            分布式聚合 - 华北
+                            <div class="component-tooltip">先在华北区域内聚合模型，再上传到中央服务器</div>
+                        </div>
+                        <div class="component">
+                            设备注册管理 - 华北
+                            <div class="component-tooltip">管理华北区域内的移动设备连接和认证</div>
+                        </div>
+                        <div class="component">
+                            模型缓存 - 华北
+                            <div class="component-tooltip">缓存常用模型，加速华北区域设备下载速度</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="region">
+                    <div class="region-title">华南区域</div>
+                    <div class="components">
+                        <div class="component">
+                            区域代理节点 - 华南
+                            <div class="component-tooltip">减少华南区域网络延迟，代理区域内通信</div>
+                        </div>
+                        <div class="component">
+                            分布式聚合 - 华南
+                            <div class="component-tooltip">先在华南区域内聚合模型，再上传到中央服务器</div>
+                        </div>
+                        <div class="component">
+                            设备注册管理 - 华南
+                            <div class="component-tooltip">管理华南区域内的移动设备连接和认证</div>
+                        </div>
+                        <div class="component">
+                            模型缓存 - 华南
+                            <div class="component-tooltip">缓存常用模型，加速华南区域设备下载速度</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 边缘设备层 -->
+        <div class="layer edge-device" id="edge-device">
+            <div class="layer-title">🟢 边缘设备层</div>
+            <div class="components">
+                <div class="component">
+                    Android设备
+                    <div class="component-tooltip">移动端训练客户端，参与联邦学习训练</div>
+                </div>
+                <div class="component">
+                    iOS设备
+                    <div class="component-tooltip">苹果生态训练客户端，参与联邦学习训练</div>
+                </div>
+                <div class="component">
+                    本地训练引擎: TF Lite/PyTorch
+                    <div class="component-tooltip">使用 TensorFlow Lite 或 PyTorch Mobile 在本地进行模型训练</div>
+                </div>
+                <div class="component">
+                    本地数据管理
+                    <div class="component-tooltip">负责设备端数据隐私保护</div>
+                </div>
+                <div class="component">
+                    智能代理
+                    <div class="component-tooltip">采用自适应学习策略，优化训练过程</div>
+                </div>
+            </div>
+        </div>
+        <!-- 支持服务层 -->
+        <div class="layer support-service" id="support-service">
+            <div class="layer-title">🔵 支持服务</div>
+            <div class="components">
+                <div class="component">
+                    PostgreSQL: 数据库
+                    <div class="component-tooltip">为中央服务器提供数据存储服务</div>
+                </div>
+                <div class="component">
+                    Redis: 缓存
+                    <div class="component-tooltip">为中央服务器提供缓存服务，提高系统性能</div>
+                </div>
+                <div class="component">
+                    MinIO: 对象存储
+                    <div class="component-tooltip">为中央服务器提供对象存储服务</div>
+                </div>
+                <div class="component">
+                    Flower Dashboard: 监控面板
+                    <div class="component-tooltip">监控联邦学习系统的运行状态</div>
+                </div>
+                <div class="component">
+                    API Gateway: API网关
+                    <div class="component-tooltip">统一管理 API 接口，提供安全防护和路由功能</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // 绘制连接线
+        function drawConnections() {
+            // 中央服务器层到区域聚合服务器层
+            connectLayers('central-server', 'region-aggregator');
+            // 区域聚合服务器层到边缘设备层
+            connectLayers('region-aggregator', 'edge-device');
+            // 支持服务层连接其他层
+            const otherLayers = ['central-server', 'region-aggregator', 'edge-device'];
+            otherLayers.forEach(layer => {
+                connectLayers('support-service', layer, true);
+            });
+        }
+
+        // 增强连接线功能
+        function connectLayers(topLayerId, bottomLayerId, isDashed = false) {
+            const topLayer = document.getElementById(topLayerId);
+            const bottomLayer = document.getElementById(bottomLayerId);
+
+            const topRect = topLayer.getBoundingClientRect();
+            const bottomRect = bottomLayer.getBoundingClientRect();
+
+            // 创建垂直线
+            const verticalLine = document.createElement('div');
+            verticalLine.className = 'connector-line';
+            verticalLine.style.height = `${bottomRect.top - topRect.bottom}px`;
+            verticalLine.style.left = `${(topRect.left + topRect.width / 2) - 1}px`;
+            verticalLine.style.top = `${topRect.bottom}px`;
+            document.body.appendChild(verticalLine);
+
+            // 创建水平线 (从垂直线到各区域)
+            if (bottomLayerId === 'region-aggregator') {
+                const regions = bottomLayer.querySelectorAll('.region');
+                regions.forEach(region => {
+                    const regionRect = region.getBoundingClientRect();
+                    const horizontalLine = document.createElement('div');
+                    horizontalLine.className = 'connector-line horizontal-line';
+                    horizontalLine.style.width = `${regionRect.left + regionRect.width / 2 - (topRect.left + topRect.width / 2)}px`;
+                    horizontalLine.style.left = `${topRect.left + topRect.width / 2}px`;
+                    horizontalLine.style.top = `${bottomRect.top + regionRect.top + regionRect.height / 2 - 1}px`;
+                    document.body.appendChild(horizontalLine);
+                });
+            }
+        }
+
+        // 页面加载完成后绘制连接线
+        window.addEventListener('load', drawConnections);
+    </script>
+</body>
+</html>

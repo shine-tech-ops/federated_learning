@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>边缘节点注册时序图</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    .mermaid {
+      /* 放大图表以获得更好的可读性 */
+      transform: scale(1.2);
+    }
+  </style>
+</head>
+<body>
+
+<div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Client as 边缘设备 (Android/iOS)
+    participant Gateway as API 网关
+    participant Region as 区域聚合服务器
+    participant Central as 中央服务器
+    participant DB as PostgreSQL 数据库
+
+    Client->>+Gateway: 1. 发起注册请求 (携带设备ID, 能力等信息)
+    Gateway->>+Region: 2. 转发注册请求
+
+    Region->>+Central: 3. 通知中央服务器有新设备注册
+    Central->>+DB: 4. 存储/更新设备元数据
+    DB-->>-Central: 5. 存储成功
+
+    Central-->>-Region: 6. 确认设备注册成功
+    Region-->>-Gateway: 7. 返回成功响应 (携带认证Token)
+    Gateway-->>-Client: 8. 注册成功
+
+    loop 等待任务
+        Client->>Region: 保持心跳或长连接
+        Note over Client: 设备进入待命状态，<br/>等待训练任务下发
+    end
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true });
+</script>
+
+</body>
+</html>

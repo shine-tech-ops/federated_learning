@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>联邦学习运维架构图 (优化版)</title>
+  <style>
+    /* --- 全局与布局 --- */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start; /* 从顶部对齐 */
+    }
+
+    .diagram-container {
+      position: relative; /* 作为连接线定位的父容器 */
+      display: grid;
+      grid-template-columns: repeat(3, 1fr); /* 三列布局 */
+      gap: 2rem;
+      width: 100%;
+      max-width: 1400px;
+    }
+
+    .connector-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none; /* 让SVG层不影响鼠标交互 */
+      overflow: visible;
+    }
+
+    /* --- 区域样式 --- */
+    .diagram-section {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 1rem;
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      color: #333;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 0.5rem;
+    }
+
+    .section-content {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    /* --- 节点样式 --- */
+    .diagram-node {
+      border: 1px solid #333;
+      padding: 0.8rem;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 0.9rem;
+      position: relative; /* 用于连接点计算 */
+    }
+
+    /* 核心应用样式 */
+    .core-app {
+      background-color: #f9f;
+      border-width: 2px;
+    }
+    /* 云组件样式 */
+    .cloud-component {
+      background-color: #e6e6fa;
+    }
+    /* 边缘组件样式 */
+    .edge-component {
+      background-color: #d1e7dd;
+    }
+    /* 客户端组件样式 */
+    .client-component {
+      background-color: #fff3cd;
+    }
+  </style>
+</head>
+<body>
+
+<div class="diagram-container" id="diagramContainer">
+  <!-- SVG画布，用于绘制连接线 -->
+  <svg class="connector-canvas" id="connectorCanvas"></svg>
+
+  <!-- 中央服务器层 -->
+  <div class="diagram-section" id="cloud-section">
+    <div class="section-title">Cloud/Data Center (中央服务器层)</div>
+    <div class="section-content">
+        <div class="diagram-node cloud-component" id="CS_LB">负载均衡/API网关</div>
+        <div class="diagram-node core-app" id="CS_App">Flower Server Application</div>
+        <div class="diagram-node cloud-component" id="CS_DB">数据库<br>e.g., PostgreSQL/MySQL</div>
+        <div class="diagram-node cloud-component" id="CS_FS">文件存储<br>e.g., S3/NFS</div>
+        <div class="diagram-node cloud-component" id="CS_MQ_Out">消息队列 (Out)<br>e.g., Kafka/RabbitMQ</div>
+        <div class="diagram-node cloud-component" id="CS_MQ_In">消息队列 (In)<br>e.g., Kafka/RabbitMQ</div>
+        <div class="diagram-node cloud-component" id="CS_Cache">缓存<br>e.g., Redis</div>
+    </div>
+  </div>
+
+  <!-- 区域聚合服务器层 -->
+  <div class="diagram-section" id="edge-section">
+    <div class="section-title">Regional Aggregation Point (区域聚合服务器层)</div>
+    <div class="section-content">
+        <div class="diagram-node edge-component" id="ES_LB">负载均衡/API网关</div>
+        <div class="diagram-node core-app" id="ES_App">Edge Server Application</div>
+        <div class="diagram-node edge-component" id="ES_DB">数据库<br>e.g., SQLite/PostgreSQL</div>
+        <div class="diagram-node edge-component" id="ES_FS">文件存储<br>e.g., Local Disk/NFS</div>
+        <div class="diagram-node edge-component" id="ES_MQ_Out">消息队列 (Out)<br>e.g., RabbitMQ</div>
+        <div class="diagram-node edge-component" id="ES_MQ_In">消息队列 (In)<br>e.g., RabbitMQ</div>
+        <div class="diagram-node edge-component" id="ES_Cache">缓存<br>e.g., Redis</div>
+    </div>
+  </div>
+
+  <!-- 客户端层 -->
+  <div class="diagram-section" id="client-section">
+    <div class="section-title">Edge Devices (客户端层)</div>
+    <div class="section-content">
+        <div class="diagram-node core-app" id="C_App">Flower Client Application</div>
+        <div class="diagram-node client-component" id="C_FS">本地文件存储<br>数据集/模型</div>
+        <div class="diagram-node client-component" id="C_Cache">本地缓存<br>模型参数/训练数据</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // --- UTILITY FUNCTIONS (More modular and reusable) ---
+
+    /**
+     * Creates a debounced function that delays invoking `func` until after `wait`
+     * milliseconds have elapsed since the last time the debounced function was invoked.
+     * @param {Function} func The function to debounce.
+     * @param {number} wait The number of milliseconds to delay.
+     * @returns {Function} Returns the new debounced function.
+     */
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    /**
+     * Creates an SVG element with specified attributes.
+     * @param {string} tag The SVG tag name.
+     * @param {object} attributes A key-value object of attributes.
+     * @returns {SVGElement} The created SVG element.
+     */
+    function createSvgElement(tag, attributes) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const key in attributes) {
+        el.setAttribute(key, attributes[key]);
+      }
+      return el;
+    }
+
+    /**
+     * Calculates the start and end coordinates for a connector line.
+     * @param {object} startRect The bounding rectangle of the start node.
+     * @param {object} endRect The bounding rectangle of the end node.
+     * @param {string} side The side of the start node from which the line originates.
+     * @returns {object} An object with x1, y1, x2, y2 coordinates.
+     */
+    function calculateEndpoints(startRect, endRect, side) {
+      let x1, y1, x2, y2;
+      switch (side) {
+        case 'left':
+          x1 = startRect.x;
+          y1 = startRect.y + startRect.height / 2;
+          x2 = endRect.x + endRect.width;
+          y2 = endRect.y + endRect.height / 2;
+          break;
+        case 'right':
+          x1 = startRect.x + startRect.width;
+          y1 = startRect.y + startRect.height / 2;
+          x2 = endRect.x;
+          y2 = endRect.y + endRect.height / 2;
+          break;
+        case 'top':
+          x1 = startRect.x + startRect.width / 2;
+          y1 = startRect.y;
+          x2 = endRect.x + endRect.width / 2;
+          y2 = endRect.y + endRect.height;
+          break;
+        case 'bottom':
+        default:
+          x1 = startRect.x + startRect.width / 2;
+          y1 = startRect.y + startRect.height;
+          x2 = endRect.x + endRect.width / 2;
+          y2 = endRect.y;
+          break;
+      }
+      return { x1, y1, x2, y2 };
+    }
+
+    // --- MAIN DRAWING LOGIC ---
+
+    function drawAllConnections() {
+      const svg = document.getElementById('connectorCanvas');
+      const connections = window.DIAGRAM_CONNECTIONS || [];
+
+      // Clear previous connections but keep the marker definition
+      while (svg.children.length > 1) {
+        svg.removeChild(svg.lastChild);
+      }
+
+      connections.forEach(({ start, end, side, label, dashed }) => {
+        const startEl = document.getElementById(start);
+        const endEl = document.getElementById(end);
+
+        if (!startEl || !endEl) {
+          console.warn(`Skipping connection: Nodes not found for ${start} -> ${end}`);
+          return;
+        }
+
+        // Get coordinates relative to the container for robust positioning
+        const startRect = {
+            x: startEl.offsetLeft,
+            y: startEl.offsetTop,
+            width: startEl.offsetWidth,
+            height: startEl.offsetHeight
+        };
+        const endRect = {
+            x: endEl.offsetLeft,
+            y: endEl.offsetTop,
+            width: endEl.offsetWidth,
+            height: endEl.offsetHeight
+        };
+
+        const { x1, y1, x2, y2 } = calculateEndpoints(startRect, endRect, side);
+
+        // Draw the line
+        const lineAttrs = { x1, y1, x2, y2, stroke: '#333', 'stroke-width': '1.5', 'marker-end': 'url(#arrowhead)' };
+        if (dashed) {
+          lineAttrs['stroke-dasharray'] = '5,5';
+        }
+        svg.appendChild(createSvgElement('line', lineAttrs));
+
+        // Draw the label if it exists
+        if (label) {
+          const text = createSvgElement('text', {
+            x: (x1 + x2) / 2,
+            y: (y1 + y2) / 2 - 5, // Offset slightly to avoid line overlap
+            fill: '#555',
+            'font-size': '12px',
+            'text-anchor': 'middle'
+          });
+          text.textContent = label;
+          svg.appendChild(text);
+        }
+      });
+    }
+
+    // --- INITIALIZATION ---
+
+    // Store connections globally to be accessible by the drawing function
+    window.DIAGRAM_CONNECTIONS = [
+      // 内部连接
+      { start: 'CS_LB', end: 'CS_App', side: 'bottom' },
+      { start: 'CS_App', end: 'CS_DB', side: 'bottom' },
+      { start: 'CS_App', end: 'CS_FS', side: 'bottom' },
+      { start: 'CS_App', end: 'CS_MQ_Out', side: 'bottom' },
+      { start: 'CS_App', end: 'CS_Cache', side: 'bottom' },
+      { start: 'CS_DB', end: 'CS_App', side: 'top', label: '元数据/配置/历史模型' },
+      { start: 'CS_FS', end: 'CS_App', side: 'top', label: '全局模型/检查点' },
+      { start: 'CS_MQ_In', end: 'CS_App', side: 'top' },
+
+      { start: 'ES_LB', end: 'ES_App', side: 'bottom' },
+      { start: 'ES_App', end: 'ES_DB', side: 'bottom' },
+      { start: 'ES_App', end: 'ES_FS', side: 'bottom' },
+      { start: 'ES_App', end: 'ES_MQ_Out', side: 'bottom' },
+      { start: 'ES_App', end: 'ES_Cache', side: 'bottom' },
+      { start: 'ES_DB', end: 'ES_App', side: 'top', label: '区域元数据/客户端状态' },
+      { start: 'ES_FS', end: 'ES_App', side: 'top', label: '临时模型/区域聚合结果' },
+      { start: 'ES_MQ_In', end: 'ES_App', side: 'top' },
+
+      { start: 'C_App', end: 'C_FS', side: 'bottom' },
+      { start: 'C_App', end: 'C_Cache', side: 'bottom' },
+
+      // 跨区域连接
+      { start: 'CS_MQ_Out', end: 'ES_MQ_In', side: 'right', label: '模型下发/任务指令' },
+      { start: 'ES_MQ_Out', end: 'CS_MQ_In', side: 'left', label: '区域聚合结果' },
+      { start: 'ES_MQ_Out', end: 'C_App', side: 'right', label: '模型下发/任务指令' },
+      { start: 'C_App', end: 'ES_MQ_In', side: 'left', label: '本地模型更新' },
+
+      { start: 'CS_App', end: 'ES_App', side: 'right', label: 'gRPC/API (可选)', dashed: true },
+      { start: 'ES_App', end: 'C_App', side: 'right', label: 'gRPC/API (可选)', dashed: true },
+    ];
+
+    // Setup SVG marker definitions
+    const svg = document.getElementById('connectorCanvas');
+    const defs = createSvgElement('defs', {});
+    defs.innerHTML = `
+      <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+      </marker>
+    `;
+    svg.appendChild(defs);
+
+    // Create a debounced version of the drawing function for performance
+    const debouncedDraw = debounce(drawAllConnections, 150);
+
+    // Initial draw and setup resize listener
+    drawAllConnections();
+    window.addEventListener('resize', debouncedDraw);
+  });
+</script>
+
+</body>
+</html>

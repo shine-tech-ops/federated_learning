@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模型聚合：区域与全局交互信息图</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Brilliant Blues & Warm Accents -->
+    <!-- Application Structure Plan: This infographic is designed as a guided journey through the aggregation process. It starts with a hero section to set the context. The core is an interactive, multi-layered flowchart built with HTML/CSS, where users click on numbered steps to reveal detailed explanations in a dynamic panel. This is followed by a section detailing the roles of each architectural component (Central Server, Edge Proxy, Client) using a card layout. The infographic concludes with a radar chart visualizing the complexity handled by each component. This structure transforms a static sequence diagram into an engaging, multi-faceted learning tool. -->
+    <!-- Visualization & Content Choices: 1. Core Process: Interactive Flowchart (HTML/CSS + JS). Goal: Organize & Explain Process. Interaction: Click on steps to get details. Justification: Superior to a static image for explaining a multi-step process, allowing for layered information. NO SVG/Mermaid used. 2. Component Roles: Card Layout (HTML/CSS). Goal: Compare & Inform. Justification: Provides a quick, scannable summary of each actor's responsibilities. 3. Complexity Distribution: Radar Chart (Chart.js/Canvas). Goal: Compare. Justification: Offers a compelling visual metaphor for how different responsibilities (e.g., communication, computation, data handling) are distributed across the three architectural layers. Labels are wrapped as required. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            color: #1e293b; /* slate-800 */
+        }
+        .flow-step-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+            cursor: pointer;
+            position: relative;
+            background-color: #ffffff;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 2px solid transparent;
+            min-height: 120px; /* Ensure consistent height */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .flow-step-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .flow-step-card.active {
+            transform: translateY(-2px);
+            border-color: #2563eb; /* blue-600 */
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+        .step-number {
+            position: absolute;
+            top: -1.25rem; /* Adjust to be slightly outside */
+            left: -1.25rem; /* Adjust to be slightly outside */
+            background-color: #2563eb; /* blue-600 */
+            color: white;
+            border-radius: 9999px; /* Full circle */
+            height: 2.5rem; /* h-10 */
+            width: 2.5rem; /* w-10 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.25rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .details-panel {
+            transition: opacity 0.4s ease-in-out, max-height 0.4s ease-in-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .details-panel.show {
+            max-height: 1000px; /* Adjust as needed */
+            opacity: 1;
+        }
+        .flow-arrow-horizontal, .flow-arrow-vertical {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem; /* Large arrow */
+            color: #94a3b8; /* slate-400 */
+            font-weight: 300;
+        }
+        .flow-arrow-vertical {
+            transform: rotate(90deg); /* Make vertical arrow point down */
+        }
+        .flow-entity-header {
+            font-weight: 600;
+            font-size: 1.25rem;
+            color: #475569; /* slate-700 */
+            margin-bottom: 1rem;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* max-w-xl */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px; /* Base height */
+            max-height: 400px;
+        }
+        @media (min-width: 768px) { /* md breakpoint */
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <main class="container mx-auto px-4 py-12 md:py-16">
+
+        <section id="hero" class="text-center mb-16">
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-slate-900">模型聚合：从区域到全局</h1>
+            <h2 class="text-2xl md:text-3xl font-semibold text-blue-600 mb-6">三层联邦学习架构下的交互流程</h2>
+            <p class="max-w-3xl mx-auto text-lg text-slate-600">
+                一个交互式指南，深入解析模型更新如何从边缘设备逐级汇聚，最终形成新的全局模型。
+            </p>
+        </section>
+
+        <section id="interactive-flow" class="mb-20">
+            <h3 class="text-3xl font-bold text-center mb-12 text-slate-800">聚合轮次 (Aggregation Round) 交互流程</h3>
+
+            <div class="flex flex-col lg:flex-row justify-center space-x-0 lg:space-x-8 space-y-8 lg:space-y-0">
+                <!-- Central Server Lane -->
+                <div class="flex flex-col items-center w-full lg:w-1/3">
+                    <div class="flow-entity-header text-blue-700">中央服务器 (Flower Server)</div>
+                    <div class="flex flex-col items-center space-y-8 w-full">
+                        <div id="step-flow-1" class="flow-step-card w-full" >
+                            <span class="step-number">1</span>
+                            <h4 class="text-lg font-semibold text-slate-800">指令: Fit (下发全局模型)</h4>
+                            <p class="mt-2 text-slate-600">服务器将全局模型参数和配置下发至区域聚合节点。</p>
+                        </div>
+                        <div class="flow-arrow-vertical">↓</div>
+                        <div id="step-flow-4" class="flow-step-card w-full">
+                            <span class="step-number">4</span>
+                            <h4 class="text-lg font-semibold text-slate-800">响应: FitRes (最终聚合)</h4>
+                            <p class="mt-2 text-slate-600">中央服务器聚合所有区域服务器结果以更新全局模型。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Horizontal Connector Lane (for large screens) -->
+                <div class="hidden lg:flex flex-col justify-between items-center w-12 pt-16 pb-16">
+                    <div class="flow-arrow-horizontal">→</div>
+                    <div class="flow-arrow-horizontal mt-auto">←</div>
+                </div>
+
+                <!-- Aggregation Server Lane -->
+                <div class="flex flex-col items-center w-full lg:w-1/3">
+                    <div class="flow-entity-header text-yellow-700">区域聚合服务器 (Edge Proxy)</div>
+                    <div class="flex flex-col items-center space-y-8 w-full">
+                        <div id="step-flow-2" class="flow-step-card w-full">
+                            <span class="step-number">2</span>
+                            <h4 class="text-lg font-semibold text-slate-800">指令: Fit (转发模型)</h4>
+                            <p class="mt-2 text-slate-600">区域节点接收全局模型，并进一步下发至被选中的客户端。</p>
+                        </div>
+                        <div class="flow-arrow-vertical">↓</div>
+                        <div id="step-flow-3-agg" class="flow-step-card w-full">
+                            <span class="step-number">3</span>
+                            <h4 class="text-lg font-semibold text-slate-800">区域聚合</h4>
+                            <p class="mt-2 text-slate-600">区域节点等待并聚合其下多个客户端的更新。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Horizontal Connector Lane 2 (for large screens) -->
+                <div class="hidden lg:flex flex-col justify-between items-center w-12 pt-16 pb-16">
+                    <div class="flow-arrow-horizontal">→</div>
+                    <div class="flow-arrow-horizontal mt-auto">←</div>
+                </div>
+
+                <!-- Client Lane -->
+                <div class="flex flex-col items-center w-full lg:w-1/3">
+                    <div class="flow-entity-header text-green-700">边缘客户端 (Android/iOS)</div>
+                    <div class="flex flex-col items-center space-y-8 w-full">
+                        <div id="step-flow-3-client-train" class="flow-step-card w-full">
+                             <span class="step-number">3.1</span>
+                            <h4 class="text-lg font-semibold text-slate-800">本地训练</h4>
+                            <p class="mt-2 text-slate-600">客户端使用本地数据进行模型训练。</p>
+                        </div>
+                        <div class="flow-arrow-vertical">↓</div>
+                        <div id="step-flow-3-client-upload" class="flow-step-card w-full">
+                             <span class="step-number">3.2</span>
+                            <h4 class="text-lg font-semibold text-slate-800">响应: FitRes (返回更新)</h4>
+                            <p class="mt-2 text-slate-600">客户端返回本地更新和样本数。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="details-panel" class="details-panel mt-12 bg-white p-8 rounded-xl shadow-xl border border-slate-200">
+                <h4 id="details-title" class="text-2xl font-bold mb-4 text-blue-700"></h4>
+                <div id="details-content" class="prose max-w-none text-slate-700"></div>
+            </div>
+        </section>
+
+        <section id="component-roles" class="mb-20">
+            <h3 class="text-3xl font-bold text-center mb-12 text-slate-800">各组件在聚合中的职责</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-green-500">
+                    <h4 class="text-xl font-bold mb-3 text-green-700">边缘客户端</h4>
+                    <ul class="list-disc list-inside space-y-2 text-slate-600">
+                        <li>在本地数据上训练模型。</li>
+                        <li>将模型更新打包成 `FitRes` 对象。</li>
+                        <li>将 `FitRes` 发送回其区域聚合服务器。</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-yellow-500">
+                    <h4 class="text-xl font-bold mb-3 text-yellow-700">区域聚合服务器</h4>
+                    <ul class="list-disc list-inside space-y-2 text-slate-600">
+                        <li>收集其管辖下所有客户端的 `FitRes`。</li>
+                        <li>执行**局部聚合**，生成区域性模型。</li>
+                        <li>将区域聚合结果发送至中央服务器。</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-blue-500">
+                    <h4 class="text-xl font-bold mb-3 text-blue-700">中央服务器</h4>
+                    <ul class="list-disc list-inside space-y-2 text-slate-600">
+                        <li>收集所有区域服务器的聚合结果。</li>
+                        <li>执行**全局聚合**，更新最终全局模型。</li>
+                        <li>启动下一轮训练。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="complexity-chart">
+            <h3 class="text-3xl font-bold text-center mb-12 text-slate-800">职责复杂度分布</h3>
+            <div class="bg-white p-8 rounded-lg shadow-lg max-w-2xl mx-auto">
+                <p class="text-center text-slate-600 mb-6">此雷达图展示了三层架构中各组件在不同方面的职责复杂度。中央服务器承担了更多的协调和最终决策工作，而边缘客户端则专注于数据处理和本地计算。</p>
+                <div class="h-96 w-full mx-auto">
+                    <canvas id="complexityRadarChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const detailsData = {
+            "step-flow-1": {
+                title: "第 1 步：中央服务器下发全局模型",
+                content: `
+                    <p>作为联邦学习架构的顶层，**中央服务器**会发布当前轮次的全局训练任务。它会从自身存储（如文件系统）或缓存中加载最新的全局模型参数和相关配置，然后通过 Flower 的通信机制，将其发送给注册的**区域聚合服务器**。</p>
+                    <p class="mt-4 font-semibold">Flower 框架职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li>选择参与本轮的区域聚合服务器。</li>
+                        <li>将全局模型参数序列化为高效的 Protobuf 格式进行网络传输。</li>
+                        <li>管理与区域聚合服务器之间的 gRPC 通信连接。</li>
+                    </ul>
+                    <p class="mt-4 font-semibold">您的职责 (中央服务器):</p>
+                    <ul class="list-disc list-inside">
+                        <li>配置中央服务器的 Flower Strategy (例如 <code>FedAvg</code>)，定义客户端选择、模型聚合逻辑等。</li>
+                        <li>确保能够加载或维护最新的全局模型参数。</li>
+                    </ul>
+                `
+            },
+            "step-flow-2": {
+                title: "第 2 步：区域聚合服务器转发模型至边缘设备",
+                content: `
+                    <p>**区域聚合服务器**作为中间层，首先会接收来自中央服务器的全局模型参数和训练配置。</p>
+                    <p class="mt-2">接着，它会根据自身的策略（例如，选择其管辖下健康且可用的边缘设备），将这些模型参数进一步下发给被选中的**边缘客户端**。这一过程同样通过 Flower 的通信机制完成。</p>
+                    <p class="mt-4 font-semibold">Flower 框架职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li>在区域聚合服务器端，管理与边缘客户端的 gRPC 通信连接。</li>
+                        <li>处理模型参数的转发和序列化/反序列化。</li>
+                    </ul>
+                    <p class="mt-4 font-semibold">您的职责 (区域聚合服务器):</p>
+                    <ul class="list-disc list-inside">
+                        <li>配置区域聚合服务器的 Flower Strategy，定义其下属边缘客户端的选择和局部聚合逻辑。</li>
+                        <li>确保其能够接收来自中央服务器的模型，并向边缘客户端正确下发。</li>
+                    </ul>
+                `
+            },
+            "step-flow-3-client-train": {
+                title: "第 3.1 步：边缘客户端本地训练",
+                content: `
+                    <p>**边缘客户端**接收到由区域聚合服务器下发的模型参数和训练配置后，会在其本地私有数据集上执行模型训练。</p>
+                    <p class="mt-2">此步骤的核心是利用客户端本地的计算资源和数据，对模型进行迭代优化，从而生成一个反映本地数据特征的局部模型更新。</p>
+                    <p class="mt-4 font-semibold">您的职责 (边缘客户端):</p>
+                    <ul class="list-disc list-inside">
+                        <li>实现客户端的 <code>fit</code> 方法，接收模型参数并更新本地模型。</li>
+                        <li>使用本地数据集执行实际的模型训练代码（例如，Keras 的 <code>model.fit()</code>）。</li>
+                    </ul>
+                `
+            },
+            "step-flow-3-client-upload": {
+                title: "第 3.2 步：边缘客户端返回模型更新",
+                content: `
+                    <p>边缘客户端完成本地训练后，会将训练后的局部模型更新（例如，模型的权重差异或新的权重集）打包成一个 <code>FitRes</code> 对象。这个对象通常包含更新后的模型参数和训练所用的样本数量。</p>
+                    <p class="mt-2">客户端通过 Flower 的通信机制，将这个 <code>FitRes</code> 对象安全地发送回其所属的**区域聚合服务器**。</p>
+                    <p class="mt-4 font-semibold">Flower 框架职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li>负责将客户端的模型更新序列化。</li>
+                        <li>通过 gRPC 连接，安全、高效地传输模型更新。</li>
+                    </ul>
+                    <p class="mt-4 font-semibold">您的职责 (边缘客户端):</p>
+                    <ul class="list-disc list-inside">
+                        <li>在 <code>fit</code> 方法中获取训练后的模型参数，并将其作为 <code>FitRes</code> 的一部分返回。</li>
+                    </ul>
+                `
+            },
+            "step-flow-3-agg": {
+                title: "第 3 步：区域聚合服务器执行局部聚合",
+                content: `
+                    <p>**区域聚合服务器**会等待并收集其管辖下的所有边缘客户端提交的 <code>FitRes</code> 结果。一旦收到足够数量的客户端更新（根据其策略配置），它就会执行**局部聚合**。</p>
+                    <p class="mt-2">局部聚合的输出是一个代表该区域所有边缘设备贡献的**区域性聚合模型**。这个聚合结果同样会被打包成一个 <code>FitRes</code> 对象，准备发送给中央服务器。</p>
+                    <p class="mt-4 font-semibold">Flower 框架职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li>提供聚合算法的核心实现 (如 <code>FedAvg</code>)。</li>
+                        <li>自动收集和处理客户端返回的 <code>FitRes</code> 对象。</li>
+                    </ul>
+                    <p class="mt-4 font-semibold">您的职责 (区域聚合服务器):</p>
+                    <ul class="list-disc list-inside">
+                        <li>在自定义的 <code>Strategy</code> 中，通过调用 <code>super().aggregate_fit()</code> 来触发 Flower 内置的局部聚合。</li>
+                        <li>可以添加自定义逻辑，如保存区域聚合模型、记录区域性指标。</li>
+                    </ul>
+                `
+            },
+            "step-flow-4": {
+                title: "第 4 步：中央服务器执行全局聚合",
+                content: `
+                    <p>**中央服务器**会等待并收集所有区域聚合服务器提交的 <code>FitRes</code>（即区域聚合结果）。</p>
+                    <p class="mt-2">一旦收集完成或达到其全局聚合策略的条件，中央服务器就会执行**全局聚合**。这通常由中央服务器上配置的 Flower <code>Strategy</code> 来完成。</p>
+                    <p class="mt-2">全局聚合的输出就是最终的**全局模型**。这个新生成的全局模型将用于下一轮的训练，并再次下发至各个区域，从而完成一个完整的联邦学习训练轮次。</p>
+                    <p class="mt-4 font-semibold">Flower 框架职责:</p>
+                    <ul class="list-disc list-inside">
+                        <li>提供全局聚合算法的核心实现。</li>
+                        <li>管理与区域聚合服务器之间的通信。</li>
+                    </ul>
+                    <p class="mt-4 font-semibold">您的职责 (中央服务器):</p>
+                    <ul class="list-disc list-inside">
+                        <li>为中央服务器选择或自定义一个最终的全局聚合 <code>Strategy</code>。</li>
+                        <li>管理全局模型的存储和版本控制，以便后续分析、部署或继续训练。</li>
+                    </ul>
+                `
+            }
+        };
+
+        const steps = document.querySelectorAll('.flow-step-card');
+        const detailsPanel = document.getElementById('details-panel');
+        const detailsTitle = document.getElementById('details-title');
+        const detailsContent = document.getElementById('details-content');
+        let activeStep = null;
+
+        steps.forEach(step => {
+            step.addEventListener('click', () => {
+                const stepId = step.id;
+
+                if (activeStep) {
+                    activeStep.classList.remove('active');
+                }
+
+                if (activeStep === step) {
+                    detailsPanel.classList.remove('show');
+                    activeStep = null;
+                } else {
+                    step.classList.add('active');
+                    activeStep = step;
+
+                    detailsTitle.textContent = detailsData[stepId].title;
+                    detailsContent.innerHTML = detailsData[stepId].content;
+                    detailsPanel.classList.add('show');
+                }
+            });
+        });
+
+        const radarCtx = document.getElementById('complexityRadarChart').getContext('2d');
+        const radarLabels = [
+            '数据处理',
+            ['本地计算', '(模型训练)'],
+            '网络通信',
+            ['聚合逻辑', '(数学计算)'],
+            ['全局协调', '& 决策']
+        ];
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: radarLabels,
+                datasets: [{
+                    label: '边缘客户端',
+                    data: [9, 8, 2, 1, 1],
+                    fill: true,
+                    backgroundColor: 'rgba(52, 211, 153, 0.2)', /* green-400 */
+                    borderColor: 'rgb(52, 211, 153)',
+                    pointBackgroundColor: 'rgb(52, 211, 153)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(52, 211, 153)'
+                }, {
+                    label: '区域聚合服务器',
+                    data: [2, 3, 7, 8, 4],
+                    fill: true,
+                    backgroundColor: 'rgba(251, 191, 36, 0.2)', /* yellow-400 */
+                    borderColor: 'rgb(251, 191, 36)',
+                    pointBackgroundColor: 'rgb(251, 191, 36)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(251, 191, 36)'
+                }, {
+                    label: '中央服务器',
+                    data: [1, 2, 5, 9, 9],
+                    fill: true,
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)', /* blue-500 */
+                    borderColor: 'rgb(59, 130, 246)',
+                    pointBackgroundColor: 'rgb(59, 130, 246)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(59, 130, 246)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                elements: {
+                    line: {
+                        borderWidth: 3
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const item = tooltipItems[0];
+                                let label = item.chart.data.labels[item.dataIndex];
+                                if (Array.isArray(label)) {
+                                  return label.join(' ');
+                                } else {
+                                  return label;
+                                }
+                            }
+                        }
+                    },
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    r: {
+                        angleLines: {
+                            display: false
+                        },
+                        suggestedMin: 0,
+                        suggestedMax: 10,
+                        pointLabels: {
+                            font: {
+                                size: 13,
+                                family: "'Noto Sans SC', sans-serif"
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
