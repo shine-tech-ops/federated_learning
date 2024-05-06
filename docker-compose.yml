@@ -1,0 +1,59 @@
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16-ts2.14
+    user: root
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: always
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/127.0.0.1/5432" ]
+      interval: 5s
+      timeout: 60s
+      retries: 120
+    environment:
+      - POSTGRES_DB=backend
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - TIMESCALEDB_TELEMETRY=off  # 根据需要调整
+    networks:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./dockers/backend.Dockerfile
+    entrypoint: ["/bin/sh", "-c", "python manage.py migrate && python manage.py migratecomment && python manage.py runserver 0.0.0.0:8000"]
+    volumes:
+      - ./backend:/code
+    ports:
+      - "8002:8000"
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_NAME=backend
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PORT=5432
+    depends_on:
+      - db
+    networks:
+      - backend
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./dockers/frontend.Dockerfile
+    volumes:
+      - ./frontend:/code
+    ports:
+      - "8001:80"
+    depends_on:
+      - backend
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge

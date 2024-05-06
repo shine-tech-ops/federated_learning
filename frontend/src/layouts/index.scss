@@ -1,0 +1,72 @@
+.el-container {
+  width: 100%;
+  height: 100%;
+  &.classic-content {
+    display: flex;
+    height: calc(100% - var(--el-page-header-height));
+  }
+  :deep(.el-aside) {
+    width: auto;
+    background-color: var(--el-menu-bg-color);
+    border-right: 1px solid #e4e7ed;
+    // box-shadow: var(--el-box-shadow-light);
+    .aside-box {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      transition: width 0.3s ease;
+      .el-scrollbar {
+        height: 100%;
+        .el-menu {
+          width: 100%;
+          overflow-x: hidden;
+          border-right: none;
+        }
+      }
+      /********* logo 改成上下结构 *********/
+      .logo {
+        box-sizing: border-box;
+        // height: 55px;
+        height: 94px;
+        .logo-img {
+          object-fit: contain;
+          // width: 28px;
+          // margin-right: 6px;
+          // height: 40px;
+          // margin-bottom: 6px;
+          max-height: 48px;
+          max-width: calc(100% - 20px);
+        }
+        .logo-text {
+          font-size: 21.5px;
+          // font-weight: bold;
+          color: var(--el-aside-logo-text-color);
+          white-space: nowrap;
+          max-width: calc(100% - 40px);
+        }
+      }
+    }
+  }
+  .el-header {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--el-page-header-height);
+    padding: 0 15px;
+    background-color: var(--el-header-bg-color);
+    color: var(--el-header-text-color);
+    border-bottom: 1px solid var(--el-header-border-color);
+  }
+  :deep(.el-header) {
+    .el-dropdown {
+      color: var(--el-header-text-color);
+    }
+    .el-breadcrumb__item:last-child .el-breadcrumb__inner {
+      color: var(--el-header-text-color);
+    }
+    .el-breadcrumb__inner a:not(:hover) {
+      color: rgba(255, 255, 255, 0.5);
+    }
+  }
+}

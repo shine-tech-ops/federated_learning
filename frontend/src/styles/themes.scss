@@ -1,0 +1,125 @@
+@font-face {
+  font-family: 'MyriadPro-Regular';
+  src: url('../assets/fonts/MyriadPro-Regular-14.otf');
+}
+@font-face {
+  font-family: 'MyriadPro-Semibold';
+  src: url('../assets/fonts/MyriadPro-Semibold-13.otf');
+}
+
+:root {
+  // 正常
+  --alarm-color-1: #25b847;
+  // 预警
+  --alarm-color-2: #f59d18;
+  // 报警
+  --alarm-color-3: #ff3333;
+  // 故障
+  --alarm-color-4: #b62ee5;
+}
+:root body {
+  // 主题颜色
+  --el-color-primary: #1765e5;
+  --el-color-primary-dark-2: #0b49af;
+  --el-color-primary-light-3: #2373f4;
+  --el-color-warning: #ffb23f;
+  --el-color-warning-opacity-20: #ffb23f33;
+  --el-color-danger-opacity-20: #f56c6c33;
+
+  // 页面背景颜色
+  --el-bg-color-page: #fff;
+
+  // 头部底边框线
+  --el-header-border-color: #e4e7ed;
+  // 头部背景色
+  --el-header-bg-color: #0e1b32;
+  // 头部高度
+  --el-page-header-height: 44px;
+  // 头部文字颜色
+  --el-header-text-color: #fff;
+  // 菜单颜色
+  --el-menu-bg-color: #f7f8f9;
+  --el-menu-text-color: #2a2e34;
+  --el-menu-active-bg-color: #ebecff;
+  --el-menu-active-color: #1765e5;
+  --el-menu-hover-text-color: #1765e5;
+  --el-menu-hover-bg-color: var(--el-menu-active-bg-color);
+  --el-aside-logo-text-color: var(--el-menu-text-color);
+
+  --el-menu-item-height: 40px;
+  --el-menu-base-level-padding: 11px;
+  --el-menu-sub-item-height: calc(var(--el-menu-item-height) - 0px);
+  --el-menu-level-padding: 35px;
+
+  .el-footer {
+    // 页脚高度
+    --el-footer-height: 30px;
+  }
+
+  .el-main {
+    // 主体内边距
+    --el-main-padding: 10px;
+  }
+
+  .el-table {
+    --el-table-header-bg-color: #f5f7fa;
+    --el-table-header-text-color: #333;
+  }
+
+  // 树形组件
+  .el-tree {
+    // 单个节点高度
+    --el-tree-node-content-height: 28px;
+  }
+
+  .el-dialog {
+    --el-dialog-padding-primary: 20px;
+    --el-dialog-border-radius: var(--el-border-radius-base);
+  }
+
+  .el-message-box {
+    --el-messagebox-padding-primary: 20px;
+    --el-messagebox-width: 470px;
+  }
+
+  .el-menu {
+    .el-menu-item.is-active::before {
+      background-color: var(--el-menu-active-color);
+    }
+    .el-sub-menu .el-sub-menu__title:hover {
+      // background-color: var(--el-menu-hover-bg-color) !important;
+    }
+  }
+
+  /********* 表单 *********/
+  .el-date-editor {
+    --el-date-editor-daterange-width: 280px;
+  }
+
+  /********* 头像 *********/
+  .el-avatar {
+    --el-avatar-bg-color: #f4f4f5;
+  }
+
+  /********* 小型按钮 loading size *********/
+  .el-button--small {
+    --el-loading-spinner-size: 20px;
+  }
+  .el-tabs {
+    --el-tabs-header-height: 56px;
+  }
+  .el-button--info {
+    --el-color-info: #e9ebf0;
+    --el-button-text-color: #2a2e34;
+    --el-button-hover-text-color: #2a2e34;
+    --el-button-hover-bg-color: #e5e5e5;
+    --el-button-hover-border-color: #e5e5e5;
+
+    --el-color-info-dark-2: #cdcdcd;
+  }
+
+  /********* 页码 *********/
+  .el-pagination {
+    --el-pagination-border-radius: 6px;
+  }
+}

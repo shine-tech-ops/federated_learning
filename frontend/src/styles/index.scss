@@ -1,0 +1,257 @@
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  font-family: 'MyriadPro-Regular';
+}
+
+body {
+  background-color: var(--el-bg-color-page);
+}
+
+.tbackground {
+  background-position:
+    0 0,
+    5px 5px !important;
+  background-size: 10px 10px !important;
+  background-image: linear-gradient(
+      45deg,
+      #eee 25%,
+      transparent 25%,
+      transparent 75%,
+      #eee 75%,
+      #eee 100%
+    ),
+    linear-gradient(45deg, #eee 25%, #fff 25%, #fff 75%, #eee 75%, #eee 100%) !important;
+}
+
+// 混合两个颜色之间中最暗的颜色
+// 用于将白色背景去掉
+.avatar-darken {
+  img {
+    mix-blend-mode: darken;
+  }
+}
+
+.super-title {
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 0.25rem;
+    height: 14px;
+    background: var(--el-color-primary);
+    position: absolute;
+    left: 0px;
+  }
+}
+
+/* scroll bar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--el-border-color-darker);
+  border-radius: 20px;
+}
+
+#app {
+  /********* 表格 *********/
+  .el-table {
+    border: 1px solid #dcdfe5;
+    border-radius: 6px;
+
+    .el-table__body tbody .el-table__row:last-child td {
+      border-bottom: 0;
+    }
+  }
+  // 当没有数据时，隐藏底部边框线
+  .el-table__inner-wrapper::before {
+    opacity: 0;
+  }
+
+  // 表头字体粗细
+  .el-table thead th {
+    font-weight: 500;
+  }
+
+  // 操作框
+  .table-operation-cell {
+    // 禁止状态的按钮颜色
+    .el-button.is-link.is-disabled {
+      // filter: grayscale(1);
+      // opacity: 0.8;
+      color: #e4e7ed;
+    }
+  }
+
+  /********* 卡片 *********/
+  // 取消卡片边框
+  .el-card:not(.show-border) {
+    border: 0;
+  }
+
+  /********* 模态框 *********/
+  .el-dialog {
+    // 模态框内边距
+    .el-dialog__body {
+      padding: 0px 0px;
+    }
+
+    .el-dialog__headerbtn .el-dialog__close {
+      color: #323232;
+    }
+    // 标题样式
+    .el-dialog__title {
+      display: flex;
+      align-items: center;
+      &:not(:empty) {
+        @extend .super-title;
+      }
+    }
+    .dialog-footer {
+      display: flex;
+      justify-content: space-between;
+      .el-button {
+        padding-left: 35px;
+        padding-right: 35px;
+      }
+    }
+  }
+
+  .el-dialog__header {
+    background: #f7f8f9;
+    margin: calc(-1 * var(--el-dialog-padding-primary));
+    margin-bottom: var(--el-dialog-padding-primary);
+    padding: 9px 15px;
+    border-radius: var(--el-border-radius-base) var(--el-border-radius-base) 0 0;
+    border-bottom: 1px solid #e9ebf0;
+    font-size: 14px;
+    font-weight: 700;
+    .el-dialog__headerbtn {
+      height: 40px;
+    }
+  }
+
+  /********* 树形组件 *********/
+  .tree-form-item .el-form-item__content .el-tree {
+    border: 1px solid var(--el-border-color);
+    border-radius: var(--el-border-radius-base);
+    // overflow: hidden;
+  }
+}
+
+/********* 询问框 *********/
+.el-message-box {
+  border: 0;
+  padding-bottom: 20px;
+  .el-message-box__title {
+    font-weight: 600;
+    @extend .super-title;
+  }
+  .el-message-box__btns {
+    // padding: 20px 20px 0;
+  }
+  .el-message-box__header,
+  .el-message-box__content {
+    // padding-left: 20px;
+  }
+  .el-message-box__header {
+    // padding-top: 20px;
+  }
+  .el-message-box__container {
+    color: #666;
+  }
+
+  // 不显示 icon 的 message-box
+  &.no-icon {
+    .el-message-box__status.el-icon {
+      display: none;
+    }
+    .el-message-box__message {
+      padding-left: 0;
+    }
+  }
+}
+
+.card-body-h-full {
+  .el-card__body {
+    height: 100%;
+  }
+}
+
+// 告警状态
+.alarm-status-text {
+  &[alarm='true'] {
+    color: var(--el-color-warning);
+    &[alarm-level='3'] {
+      color: var(--el-color-danger);
+    }
+  }
+}
+
+// 图表样式
+.elx-card {
+  border-radius: 4px;
+  margin-right: 10px;
+  background: #fff;
+  flex: 1;
+  &:last-child {
+    margin-right: 0;
+  }
+}
+
+.elx-card-row {
+  display: flex;
+}
+
+.elx-card-title {
+  font-size: 18px;
+  padding: 10px;
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 0.25rem;
+    height: 0.75rem;
+    margin-left: -10px;
+    margin-right: 10px;
+    background-color: var(--el-color-primary);
+  }
+  &:empty::before {
+    display: none;
+  }
+}
+
+/********* 表单 *********/
+
+.inner-label {
+  // label 在 input 内部
+  .el-form-item:not(.form-item-btn) {
+    box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color)) inset;
+    padding: 1px 1px 1px 10px;
+    border-radius: var(--el-input-border-radius, var(--el-border-radius-base));
+    .el-input__wrapper,
+    .el-select__wrapper {
+      box-shadow: none;
+    }
+    .el-range-editor.el-input__wrapper {
+      padding: 0 9px;
+    }
+    .el-form-item__label {
+      padding: 0;
+    }
+  }
+}
+
+// 两列展示
+.el-form.form-two-column {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  .el-form-item {
+    width: 49%;
+  }
+}
