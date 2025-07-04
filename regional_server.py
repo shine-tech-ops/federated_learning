@@ -23,13 +23,12 @@ class RegionalBridgeClient(fl.client.NumPyClient):
             min_available_clients=1,
         )
 
-        # 在本区域内运行一轮训练
-        history = fl.simulation.start_simulation(
+        # 【修复】使用 fl.server.start_server 来启动一个临时的区域服务器
+        # 它会监听指定地址，运行一轮，然后返回历史记录
+        history = fl.server.start_server(
             server_address=self.regional_server_address,
             strategy=strategy,
-            num_rounds=1,
             config=fl.server.ServerConfig(num_rounds=1),
-            client_manager=fl.server.SimpleClientManager()  # 简单管理器，因为它会自动发现连接的客户端
         )
 
         # 从区域训练结果中提取聚合后的权重
@@ -45,7 +44,7 @@ def run_regional_server(region_name, address):
     """为本区域的客户端运行一个永久的 Flower 服务器。"""
     print(f"[{region_name}] 区域服务器正在启动，监听地址 {address}...")
     # 这个服务器会一直运行，等待其下的客户端连接
-    # 注意：我们在这里不启动它，因为上面的 start_simulation 会临时接管
+    # 注意：我们在这里不启动它，因为上面的 start_server 会临时接管
     # 在真实生产环境中，这里会是一个独立的、长期运行的服务器进程
     pass  # 仅为逻辑占位
 
