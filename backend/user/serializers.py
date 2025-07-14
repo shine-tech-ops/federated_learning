@@ -92,6 +92,12 @@ class UserRoleSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class CommonUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AuthUserExtend
+        fields = ["id", "name", "email", "is_active", "is_superuser"]
+
+
 class UserSerializer(serializers.ModelSerializer):
     role = UserRoleSerializer(many=True, read_only=True)
 

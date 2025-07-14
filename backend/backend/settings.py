@@ -69,6 +69,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "backend.middleware.log_middleware.OperationLogMiddleware",
 ]
 
 ROOT_URLCONF = "backend.urls"
@@ -200,6 +201,10 @@ CORS_ALLOW_METHODS = [
     "PATCH",
     "POST",
     "PUT",
+]
+
+CORS_ORIGIN_WHITELIST = [
+    "http://127.0.0.1:5200",
 ]
 
 LOGGING = {

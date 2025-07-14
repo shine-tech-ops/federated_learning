@@ -1,7 +1,7 @@
 import time
 import pika
 import json
-import app.conf.env as env
+import conf.env as env
 from loguru import logger
 
 
@@ -28,7 +28,6 @@ class RabbitMQClient:
                 body=message,
                 properties=pika.BasicProperties(delivery_mode=2),
             )
-            logger.info(f"RabbitMQ Sent exchange: {exchange}, message: {message}")
         finally:
             self._connection.close()
 

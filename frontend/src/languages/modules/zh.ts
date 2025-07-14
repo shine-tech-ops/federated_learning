@@ -60,7 +60,8 @@ export default {
     systemConfig: '系统配置管理',
     federatedTasks: '联邦任务管理',
     modelManagement: '模型管理',
-    nodeStatus: '节点状态',
+    regionNodeManagement: '区域节点管理',
+    edgeNodeManagement: '边缘节点管理',
     logAudit: '日志审计',
     statisticsReport: '统计与报表',
     /*

@@ -20,3 +20,12 @@ AGGREGATION_STRATEGIES_MAP = {
     "fedxgb_nn_avg": {"label": "联邦 XGBoost 神经网络平均", "type": "fedxgb_nn_avg"},
     "fedyogi": {"label": "联邦 Yogi (Federated Yogi)", "type": "fedyogi"}
 }
+
+# MQ device_reg 队列
+MQ_DEVICE_REG_QUEUE = "device_reg"
+MQ_DEVICE_REG_EXCHANGE = "device_reg_exchange"
+# MQ device heartbeat 队列
+MQ_DEVICE_HEARTBEAT_QUEUE = "device_heartbeat"
+MQ_DEVICE_HEARTBEAT_EXCHANGE = "device_heartbeat_exchange"
+
+HEARTBEAT_TIMEOUT = 60 * 2

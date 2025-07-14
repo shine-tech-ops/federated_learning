@@ -33,41 +33,19 @@ export const sysModel = {
       developing,
       mock,
       method: method.get,
-      url: `/v1/common_config/system_log/`,
+      url: `/v1/learn_management/system_log/`,
       params: data,
       // 不对错误结果进行弹窗提示
       errHandle: 'none'
     })
   },
-  exportSystemLog: (data: any) => {
+  delSystemLog: (data: any) => {
     return service({
       developing,
-      // mock: 'local',
       mock,
-      method: method.get,
-      url: `/v1/common_config/system_log/`,
-      params: data,
-      resCheck: false
-    })
-  },
-  setSystemLog: (content: string) => {
-    return service({
-      developing,
-      // mock: 'local',
-      mock,
-      method: method.post,
-      url: `/v1/common_config/system_log/`,
-      data: { content }
-    })
-  },
-  systemLogExport: (data: any) => {
-    return service({
-      developing,
-      // mock: 'local',
-      mock,
-      method: method.get,
-      url: `/v1/system/log/export/`,
-      params: data
+      method: method.del,
+      url: `/v1/learn_management/system_log/`,
+      data
     })
   }
 }
@@ -75,7 +53,5 @@ export const sysModel = {
 export const {
     uploadFile,
     getSystemLog,
-    exportSystemLog,
-    setSystemLog,
-    systemLogExport
+    delSystemLog,
 } = sysModel

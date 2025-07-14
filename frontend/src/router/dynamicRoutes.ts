@@ -36,11 +36,21 @@ export const dynamicRoutes: Array<RouteRecordRaw> = [
     }
   },
   {
-    path: '/node/status',
-    name: 'nodeStatus',
-    component: () => import('@/views/node/status/index.vue'),
+    path: '/region/node/management',
+    name: 'regionNodeManagement',
+    component: () => import('@/views/region_node/management/index.vue'),
     meta: {
-      title: 'menu.nodeStatus',
+      title: 'menu.regionNodeManagement',
+      icon: 'Monitor',
+      isKeepAlive: true
+    }
+  },
+  {
+    path: '/edge/node/management',
+    name: 'edgeNodeManagement',
+    component: () => import('@/views/edge_node/management/index.vue'),
+    meta: {
+      title: 'menu.edgeNodeManagement',
       icon: 'Monitor',
       isKeepAlive: true
     }

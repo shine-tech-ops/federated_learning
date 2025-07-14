@@ -3,8 +3,10 @@ from threading import Thread
 from loguru import logger
 from app.consumer.mqtt_device_consumer import DeviceMQTTConsumer
 from flasgger import Swagger
+from flask_cors import CORS
 
 app = create_app()
+CORS(app, methods=["*"], origins="*", headers=["*"], supports_credentials=True, expose_headers=["*"], allow_headers=["*"], automatic_options=True)
 
 # 启用 Swagger，默认模板会自动生成
 swagger = Swagger(app)
