@@ -1,10 +1,13 @@
+from django.conf import settings
+from rest_framework.permissions import BasePermission
+
 import hashlib
 import time
 from django.conf import settings
 from rest_framework.permissions import BasePermission
 
 from .redis_client import RedisClient
-from .common_constants import REDIS_AUTH_TOKEN_PREFIX
+from .common_constant import REDIS_AUTH_TOKEN_PREFIX
 
 def generate_auth_token(device_id, region):
     # 生成基础 token 字符串
@@ -17,6 +20,7 @@ def generate_auth_token(device_id, region):
     RedisClient().set_key(REDIS_AUTH_TOKEN_PREFIX.format(sha256_hash), device_id, expire=3600)  # 1小时过期
 
     return sha256_hash
+
 
 class PassAuthenticatedPermission(BasePermission):
     """

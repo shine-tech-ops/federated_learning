@@ -5,6 +5,7 @@ from django.db import models
 from utils.common_constant import AGGREGATION_STRATEGIES_MAP
 
 from user.models import AuthUserExtend
+from django.utils import timezone
 from timescale.db.models.managers import TimescaleManager
 from timescale.db.models.fields import TimescaleDateTimeField
 
@@ -136,7 +137,7 @@ class EdgeNode(models.Model):
         ('offline', '离线'),
         ('maintenance', '维护中'),
     )
-    region = models.ForeignKey(
+    region_node = models.ForeignKey(
         RegionNode,
         on_delete=models.CASCADE,
         related_name='edge_nodes',
@@ -169,7 +170,71 @@ class EdgeNode(models.Model):
         db_table_comment = "边缘节点表"
         verbose_name = "边缘节点"
         ordering = ["-id"]
-        unique_together = ("device_id",  "region")  # 防止重复的节点配置
+        unique_together = ("device_id",  "region_node")  # 防止重复的节点配置
+
+
+class TrainingRecord(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('running', 'Running'),
+        ('paused', 'Paused'),
+        ('canceled', 'Canceled'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    )
+
+    device_id = models.CharField(max_length=100, null=True, blank=True, verbose_name="设备ID")
+    edge_node = models.ForeignKey('EdgeNode', on_delete=models.CASCADE, verbose_name="边缘设备")
+    federated_task = models.ForeignKey('FederatedTask', on_delete=models.CASCADE, verbose_name="联邦任务")
+    model_info = models.ForeignKey('ModelInfo', on_delete=models.CASCADE, verbose_name="模型信息")
+    model_version = models.ForeignKey('ModelVersion', on_delete=models.CASCADE, verbose_name="模型版本")
+    region_node = models.ForeignKey('RegionNode', on_delete=models.CASCADE, verbose_name="区域节点")
+
+    device_context = models.JSONField(default=dict, verbose_name="设备上下文")
+    training_context = models.JSONField(default=dict, verbose_name="训练上下文")
+
+    start_time = models.DateTimeField(auto_now_add=True, verbose_name="开始时间")
+    end_time = models.DateTimeField(null=True, blank=True, verbose_name="结束时间")
+    duration = models.FloatField(null=True, blank=True, verbose_name="训练时长（秒）")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="状态")
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+
+    def save(self, *args, **kwargs):
+        # 1. 状态流转检查
+        if self.pk is not None:  # 说明是更新操作
+            orig = TrainingRecord.objects.get(pk=self.pk)
+            orig_status = orig.status
+            new_status = self.status
+
+            valid_transitions = {
+                'pending': ['running'],
+                'running': ['paused', 'canceled', 'completed', 'failed'],
+                'paused': ['running', 'canceled'],
+            }
+
+            if new_status not in valid_transitions.get(orig_status, []):
+                raise ValueError(f"Invalid status transition from {orig_status} to {new_status}")
+
+        # 2. 如果状态是 completed 或 failed，更新 end_time 和 duration
+        if self.status in ['completed', 'failed']:
+            if not self.end_time:
+                self.end_time = timezone.now()
+            if self.start_time and self.end_time:
+                self.duration = (self.end_time - self.start_time).total_seconds()
+
+        # 3. 调用父类的 save()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = "training_record"
+        db_table_comment = "训练记录表"
+        verbose_name = "训练记录"
+        ordering = ["-id"]
+        unique_together = ("device_id", "edge_node", "federated_task", "model_info", "model_version", "region_node")
+
 
 
 class OperationLog(models.Model):

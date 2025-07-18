@@ -10,7 +10,9 @@ from rest_framework.generics import GenericAPIView
 
 class FederatedTaskView(GenericAPIView):
 
-    queryset = FederatedTask.objects.all()
+    queryset = FederatedTask.objects.select_related(
+    'region_node', 'model_info', 'model_version'
+    )
     serializer_class = FederatedTaskSerializer
     pagination_class = CustomPagination
 
@@ -52,9 +54,6 @@ class FederatedTaskView(GenericAPIView):
             task_id = request.data.get("id")
             task = self.queryset.get(id=task_id)
             data = request.data
-            # data["model_info"] = ModelInfo.objects.get(id=data["model_info"])
-            # data["model_version"] = ModelVersion.objects.get(id=data["model_version"])
-            # data["region_node"] = RegionNode.objects.get(id=data["region_node"])
             serializer = self.get_serializer(task, data=data, partial=True)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()

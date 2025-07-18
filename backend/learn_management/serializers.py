@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import FederatedTask, SystemConfig, ModelVersion, ModelInfo, RegionNode, EdgeNode, OperationLog
+from .models import FederatedTask, SystemConfig, ModelVersion, ModelInfo, RegionNode, EdgeNode, TrainingRecord, OperationLog
 from user.serializers import CommonUserSerializer
 
 class SystemConfigSerializer(serializers.ModelSerializer):
@@ -38,9 +38,35 @@ class FederatedTaskSerializer(serializers.ModelSerializer):
 
 
 class EdgeNodeSerializer(serializers.ModelSerializer):
-    region = RegionNodeSerializer(read_only=True)
+    def to_representation(self, obj):
+        ret = super(EdgeNodeSerializer, self).to_representation(obj)
+        ret['region_node_detail'] = RegionNodeSerializer(obj.region_node).data
+        return ret
     class Meta:
         model = EdgeNode
+        fields = '__all__'
+
+
+class TrainingRecordSerializer(serializers.ModelSerializer):
+    edge_node_detail = serializers.SerializerMethodField()
+    region_node_detail = serializers.SerializerMethodField()
+    model_info_detail = serializers.SerializerMethodField()
+    model_version_detail = serializers.SerializerMethodField()
+
+    def get_edge_node_detail(self, obj):
+        return EdgeNodeSerializer(obj.edge_node).data
+
+    def get_region_node_detail(self, obj):
+        return RegionNodeSerializer(obj.region_node).data
+
+    def get_model_info_detail(self, obj):
+        return ModelInfoSerializer(obj.model_info).data
+
+    def get_model_version_detail(self, obj):
+        return ModelVersionSerializer(obj.model_version).data
+
+    class Meta:
+        model = TrainingRecord
         fields = '__all__'
 
 class OperationLogSerializer(serializers.ModelSerializer):

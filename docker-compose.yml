@@ -29,7 +29,7 @@ services:
     volumes:
       - ./backend:/code
     ports:
-      - "8002:8000"
+      - "8085:8000"
     environment:
       - POSTGRES_HOST=db
       - POSTGRES_NAME=backend
@@ -37,8 +37,36 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_PORT=5432
       - ENABLE_APP=CenterApp
+      - X_API_TOKEN=fNKZrhZlRGdqBCKZkgvpENkRIsorvRGBHUMoMEtobuU
     depends_on:
       - db
+      - redis
+      - mqtt
+      - rabbitmq
+    networks:
+      - backend
+
+  redis:
+    image: redis:7.2.5
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+    networks:
+      - backend
+
+  mqtt:
+    image: eclipse-mosquitto:2.0.18
+    ports:
+      - 1883:1883
+      - 9001:9001
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto.passwd/:/etc/mosquitto/passwd
+      - ./mosquitto/data/:/mosquitto/data
+      - ./mosquitto/log/:/mosquitto/log
     networks:
       - backend
 
@@ -63,7 +91,7 @@ services:
     volumes:
       - ./frontend:/code
     ports:
-      - "8001:80"
+      - "8086:80"
     depends_on:
       - backend
     networks:

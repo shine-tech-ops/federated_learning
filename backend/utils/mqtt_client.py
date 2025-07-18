@@ -2,7 +2,7 @@ import json
 import uuid
 import paho.mqtt.client as mqtt
 import paho.mqtt.publish as mqtt_publish
-import app.conf.env as env
+import conf.env as env
 from loguru import logger
 from paho.mqtt.enums import CallbackAPIVersion
 

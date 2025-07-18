@@ -6,7 +6,7 @@
   <el-table :data="edgeNodes" border style="width: 100%">
     <el-table-column prop="id" label="ID" />
     <el-table-column prop="device_id" label="设备ID" />
-    <el-table-column prop="region.name" label="所属区域" />
+    <el-table-column prop="region_node_detail.name" label="所属区域" />
     <el-table-column prop="last_heartbeat" label="最后心跳时间" width="160" />
     <el-table-column prop="status" label="状态" width="100">
       <template #default="{ row }">
@@ -16,16 +16,16 @@
       </template>
     </el-table-column>
     <el-table-column prop="created_at" label="创建时间" width="160" />
-    <el-table-column label="操作">
-      <template #default="{ row }">
-        <el-button size="small" type="primary" @click="editEdgeNode(row)">编辑</el-button>
-        <el-popconfirm title="确定要删除这个边缘节点吗？" @confirm="deleteEdgeNode(row.id)">
-          <template #reference>
-            <el-button size="small" type="danger">删除</el-button>
-          </template>
-        </el-popconfirm>
-      </template>
-    </el-table-column>
+<!--    <el-table-column label="操作">-->
+<!--      <template #default="{ row }">-->
+<!--        <el-button size="small" type="primary" @click="editEdgeNode(row)">编辑</el-button>-->
+<!--        <el-popconfirm title="确定要删除这个边缘节点吗？" @confirm="deleteEdgeNode(row.id)">-->
+<!--          <template #reference>-->
+<!--            <el-button size="small" type="danger">删除</el-button>-->
+<!--          </template>-->
+<!--        </el-popconfirm>-->
+<!--      </template>-->
+<!--    </el-table-column>-->
   </el-table>
 
   <!-- 分页 -->
@@ -45,7 +45,7 @@
         <el-input v-model="form.name" />
       </el-form-item>
       <el-form-item label="所属区域">
-        <el-select v-model="form.region_id" placeholder="请选择区域" style="width: 100%">
+        <el-select v-model="form.region_node" placeholder="请选择区域" style="width: 100%">
           <el-option
             v-for="region in regionList"
             :key="region.id"

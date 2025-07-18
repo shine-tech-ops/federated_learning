@@ -7,9 +7,15 @@ from rest_framework.generics import GenericAPIView
 from django.core.files.base import ContentFile
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.serializers import Serializer
+
+
+class UploadFileSerializer(Serializer):
+    pass
 
 
 class UploadFileView(GenericAPIView):
+    serializer_class = UploadFileSerializer  # 添加序列化器类
     def post(self, request, *args, **kwargs):
         try:
             file = request.FILES.get("file")

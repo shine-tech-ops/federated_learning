@@ -15,6 +15,7 @@ from datetime import timedelta
 from pathlib import Path
 from corsheaders.defaults import default_headers
 from loguru import logger
+from conf import env
 
 logger.add(
     "logs/backend.log",
@@ -24,6 +25,36 @@ logger.add(
     level="INFO",
     encoding="utf-8",
 )
+if env.SQL_DEBUG:
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+                'verbose': {
+                    'format': '{asctime} | {levelname} | {message}',
+                    'style': '{',
+                },
+            },
+
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'verbose',
+            },
+            'file': {
+                        'class': 'logging.FileHandler',
+                        'filename': 'logs/backend.log',  # 日志文件名
+                        'formatter': 'verbose',
+                    },
+        },
+        'loggers': {
+            'django.db.backends': {
+                'handlers': ['console', 'file'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
+        },
+    }
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -36,7 +67,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure--$bv6pb(i#9*q(xik*!+mhx$69zx2h3nxw*to^nyssrlo=^h#s"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.DEBUG
 
 ALLOWED_HOSTS = ["*"]
 
@@ -173,13 +204,15 @@ SIMPLE_JWT = {
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
+        "rest_framework.parsers.FormParser",
+        "rest_framework.parsers.MultiPartParser",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": [
-        # 'rest_framework.permissions.IsAuthenticated',    # 开启此项并去掉AllowAny则启用验证
-        "rest_framework.permissions.AllowAny",  # 不配置的情况下默认此项
+        'rest_framework.permissions.IsAuthenticated',    # 开启此项并去掉AllowAny则启用验证
+        # "rest_framework.permissions.AllowAny",  # 不配置的情况下默认此项
     ],
     "DEFAULT_PAGINATION_CLASS": "backend.pagination.CustomPagination",
     "PAGE_SIZE": 20,
@@ -206,57 +239,17 @@ CORS_ALLOW_METHODS = [
 CORS_ORIGIN_WHITELIST = [
     "http://127.0.0.1:5200",
 ]
-
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": True,
-    "filters": {"require_debug_false": {"()": "django.utils.log.RequireDebugFalse"}},
-    "formatters": {
-        "standard": {
-            "format": "[Date:%(asctime)s] [%(levelname)s] [%(module)s] [%(funcName)s] %(message)s",
-        },
-    },
-    "handlers": {
-        "mail_admins": {
-            "level": "ERROR",
-            "filters": ["require_debug_false"],
-            "class": "django.utils.log.AdminEmailHandler",
-        },
-        "default": {
-            "level": "ERROR",
-            "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": Path(BASE_DIR) / "logs/backend.log",
-            "backupCount": 10,
-            "when": "D",
-            "formatter": "standard",
-            "encoding": "utf-8",  # 设置默认编码，否则打印出来汉字乱码
-        },
-        "debug": {  # 记录到日志文件(需要创建对应的目录，否则会出错)
-            "level": "DEBUG",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": Path(BASE_DIR) / "logs/debug.log",  # 日志输出文件
-            "maxBytes": 1024 * 1024 * 5,  # 文件大小
-            "backupCount": 5,  # 备份份数
-            "formatter": "standard",  # 使用哪种formatters日志格式
-            "encoding": "utf-8",
-        },
-        "console": {  # 输出到控制台
-            "level": "INFO",
-            "class": "logging.StreamHandler",
-            "formatter": "standard",
-        },
-    },
-    "loggers": {
-        "django": {
-            "handlers": [],
-            "level": "INFO",
-            "encoding": "utf-8",
-            "propagate": True,
-        },
-    },
-}
-
-
 # 迁移数据库注释 https://pypi.org/project/django-comment-migrate/
 DCM_COMMENT_KEY = "verbose_name"
 DCM_TABLE_COMMENT_KEY = "verbose_name"
+
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+FILE_UPLOAD_PERMISSIONS = 0o644
+
+
+# 系统网关调用APT TOKEN
+X_API_TOKENS = [
+    env.X_API_TOKEN,
+]

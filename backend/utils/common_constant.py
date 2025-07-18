@@ -28,4 +28,11 @@ MQ_DEVICE_REG_EXCHANGE = "device_reg_exchange"
 MQ_DEVICE_HEARTBEAT_QUEUE = "device_heartbeat"
 MQ_DEVICE_HEARTBEAT_EXCHANGE = "device_heartbeat_exchange"
 
+# MQ device_training 队列
+MQ_DEVICE_TRAINING_QUEUE = "device_training"
+MQ_DEVICE_TRAINING_EXCHANGE = "device_training_exchange"
+
+
+REDIS_AUTH_TOKEN_PREFIX = "device_auth_token:{}"
+
 HEARTBEAT_TIMEOUT = 60 * 2

@@ -1,5 +1,3 @@
-
-# views/system_config_views.py
 import traceback
 from rest_framework.response import Response
 from rest_framework import status
@@ -7,6 +5,7 @@ from rest_framework.generics import GenericAPIView
 from learn_management.models import SystemConfig
 from learn_management.serializers import SystemConfigSerializer
 from backend.pagination import CustomPagination
+from rest_framework.serializers import Serializer
 import utils.common_constant as const
 
 
@@ -126,7 +125,14 @@ class SystemConfigActivateView(GenericAPIView):
                 "data": str(e),
             })
 
+
+class AggregationMethodSerializer(Serializer):
+    pass
+
+
 class AggregationMethodView(GenericAPIView):
+    serializer_class = AggregationMethodSerializer  # 添加这一行
+
     def get(self, request, *args, **kwargs):
 
        return Response({
