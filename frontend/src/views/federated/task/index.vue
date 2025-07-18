@@ -8,6 +8,9 @@
     <el-table-column prop="id" label="任务ID" />
     <el-table-column prop="name" label="任务名称" />
     <el-table-column prop="status" label="状态" />
+    <el-table-column prop="model_info_detail.name" label="模型" />
+    <el-table-column prop="model_version_detail.version" label="版本" />
+    <el-table-column prop="region_node_detail.name" label="区域服务器" />
     <el-table-column prop="rounds" label="训练轮次" />
     <el-table-column prop="aggregation_method" label="聚合方式" />
     <el-table-column prop="created_at" label="创建时间" width="160" />
@@ -48,6 +51,39 @@
       <el-form-item label="任务描述">
         <el-input v-model="taskForm.description" type="textarea" />
       </el-form-item>
+
+    <el-form-item label="模型" prop="model_info">
+    <el-select v-model="taskForm.model_info" placeholder="请选择模型" style="width: 100%" @change="handleModelChange">
+      <el-option
+        v-for="model in modelInfos"
+        :key="model.id"
+        :label="model.name"
+        :value="model.id"
+      />
+    </el-select>
+  </el-form-item>
+
+  <el-form-item label="模型版本" prop="model_version">
+    <el-select v-model="taskForm.model_version" placeholder="请选择模型版本" style="width: 100%">
+      <el-option
+        v-for="version in modelVersions"
+        :key="version.id"
+        :label="version.version"
+        :value="version.id"
+      />
+    </el-select>
+  </el-form-item>
+
+    <el-form-item label="区域服务器" prop="region_node">
+      <el-select v-model="taskForm.region_node" placeholder="请选择区域服务器" style="width: 100%">
+        <el-option
+          v-for="node in regionNodes"
+          :key="node.id"
+          :label="node.name"
+          :value="node.id"
+        />
+      </el-select>
+    </el-form-item>
       <el-form-item label="训练轮次" prop="rounds">
         <el-input-number v-model="taskForm.rounds" :default="10" :min="1" />
       </el-form-item>
@@ -74,6 +110,8 @@
 <script setup lang="ts">import { ref, onMounted } from 'vue'
 import { federatedTaskModel } from '@/api/federatedTask'
 import { systemConfigModel } from '@/api/systemConfig'
+import { regionNodeApi } from '@/api/nodeManagement'
+import { modelInfoApi, modelManagementApi } from '@/api/modelManagement'
 import { ElPopconfirm, ElMessage, type FormRules } from 'element-plus'
 
 // 任务数据
@@ -87,7 +125,53 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
 defineExpose({ formRef })
+// 新增字段
+const modelInfos = ref([])
+const modelVersions = ref([])
+const regionNodes = ref([])
 
+// 获取模型信息列表
+const fetchModelInfos = async () => {
+  try {
+    const res = await modelInfoApi.fetchModelInfos({})
+    modelInfos.value = res.list || []
+  } catch (error) {
+    ElMessage.error('获取模型信息失败')
+  }
+}
+
+// 获取模型版本列表（根据模型）
+const fetchModelVersions = async (modelId = null) => {
+  try {
+    const res = await modelManagementApi.fetchModelVersions({
+      model_id: modelId
+    })
+    modelVersions.value = res.list || []
+    return Promise.resolve()
+  } catch (error) {
+     ElMessage.error('获取模型版本失败')
+     return Promise.reject()
+  }
+}
+
+// 模型选择变化时，更新版本列表
+const handleModelChange = (modelId: number | null) => {
+  if (modelId) {
+    fetchModelVersions(modelId)
+  } else {
+    modelVersions.value = []
+  }
+}
+
+// 获取区域服务器列表
+const fetchRegionNodes = async () => {
+  try {
+    const res = await regionNodeApi.fetchRegionNodes({})
+    regionNodes.value = res.list || []
+  } catch (error) {
+    ElMessage.error('获取区域服务器失败')
+  }
+}
 // 表单验证规则
 const rules = ref<FormRules>({
   name: [
@@ -97,16 +181,29 @@ const rules = ref<FormRules>({
   rounds: [
     { required: true, message: '训练轮次必须大于0', trigger: 'change' },
     { type: 'number', min: 1, message: '轮次不能小于1', trigger: 'blur' }
+  ],
+  model_info: [
+    { required: true, message: '请选择模型', trigger: 'change' }
+  ],
+  model_version: [
+    { required: true, message: '请选择模型版本', trigger: 'change' }
+  ],
+  region_node: [
+    { required: true, message: '请选择区域服务器', trigger: 'change' }
   ]
 })
 
 // 任务表单数据
+// 表单数据
 const taskForm = ref({
   id: null,
   name: '',
   description: '',
-  rounds: 10, // 默认训练轮次
-  aggregation_method: '' // 聚合方式初始化为空
+  rounds: 10,
+  aggregation_method: 'fedavg',
+  model_info: null,
+  model_version: null,
+  region_node: null
 })
 
 // 可用的聚合方法列表
@@ -155,7 +252,10 @@ const fetchAggregationMethods = async () => {
 onMounted(async () => {
   await Promise.all([
     fetchTasks(),
-    fetchAggregationMethods()
+    fetchAggregationMethods(),
+    fetchModelInfos(),
+    fetchRegionNodes(),
+    // fetchModelVersions(),
   ])
 })
 
@@ -172,7 +272,10 @@ const createTask = () => {
     name: '',
     description: '',
     rounds: 10,
-    aggregation_method: aggregationMethods.value.length > 0 ? aggregationMethods.value[0] : 'fedavg'
+    aggregation_method: aggregationMethods.value.length > 0 ? aggregationMethods.value[0] : 'fedavg',
+    model_info: null,
+    model_version: null,
+    region_node: null
   }
   dialogVisible.value = true
 }
@@ -189,6 +292,16 @@ const editTask = (row) => {
     taskForm.value.aggregation_method = aggregationMethods.value[0]
   }
 
+  // 如果有 model_info，加载模型版本并选中当前版本
+  if (taskForm.value.model_info) {
+    fetchModelVersions(taskForm.value.model_info).then(() => {
+      taskForm.value.model_version = row.model_version
+    })
+  } else {
+    modelVersions.value = []
+    taskForm.value.model_version = null
+  }
+
   dialogVisible.value = true
 }
 
@@ -196,8 +309,8 @@ const editTask = (row) => {
 const submitTask = async () => {
   try {
     await formRef.value.validate()
-
     if (isEdit.value) {
+
       await federatedTaskModel.updateTaskApi(taskForm.value)
       ElMessage.success('任务编辑成功')
     } else {

@@ -2,7 +2,7 @@ import traceback
 
 from rest_framework.response import Response
 from rest_framework import status
-from .models import FederatedTask
+from .models import FederatedTask, ModelInfo, ModelVersion, RegionNode
 from .serializers import FederatedTaskSerializer
 from backend.pagination import CustomPagination
 from rest_framework.generics import GenericAPIView
@@ -18,6 +18,9 @@ class FederatedTaskView(GenericAPIView):
         try:
             data = request.data
             data["created_by"] = request.user.id
+            data["model_info"] = ModelInfo.objects.get(id=data["model_info"])
+            data["model_version"] = ModelVersion.objects.get(id=data["model_version"])
+            data["region_node"] = RegionNode.objects.get(id=data["region_node"])
             serializer = self.get_serializer(data=data)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
@@ -48,7 +51,11 @@ class FederatedTaskView(GenericAPIView):
         try:
             task_id = request.data.get("id")
             task = self.queryset.get(id=task_id)
-            serializer = self.get_serializer(task, data=request.data, partial=True)
+            data = request.data
+            # data["model_info"] = ModelInfo.objects.get(id=data["model_info"])
+            # data["model_version"] = ModelVersion.objects.get(id=data["model_version"])
+            # data["region_node"] = RegionNode.objects.get(id=data["region_node"])
+            serializer = self.get_serializer(task, data=data, partial=True)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
                 ret_data = {

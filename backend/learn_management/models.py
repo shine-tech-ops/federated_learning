@@ -37,8 +37,14 @@ class FederatedTask(models.Model):
         verbose_name="状态",
         db_index=True,
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
+    model_info = models.ForeignKey('ModelInfo', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="模型信息")
+    model_version = models.ForeignKey('ModelVersion', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="模型版本")
+    region_node = models.ForeignKey('RegionNode', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="区域服务器")
+
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
     created_by = models.ForeignKey(AuthUserExtend, on_delete=models.CASCADE, related_name='federated_task_created_by', verbose_name='创建人')
 
     class Meta:
