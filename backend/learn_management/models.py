@@ -31,6 +31,9 @@ class FederatedTask(models.Model):
         verbose_name="聚合方式",
         db_index=True,
     )
+
+    participation_rate = models.IntegerField(default=50, verbose_name="参与率")
+
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,

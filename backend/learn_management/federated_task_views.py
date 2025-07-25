@@ -2,16 +2,25 @@ import traceback
 
 from rest_framework.response import Response
 from rest_framework import status
-from .models import FederatedTask, ModelInfo, ModelVersion, RegionNode
+from .models import FederatedTask, ModelInfo, ModelVersion, RegionNode, SystemConfig
 from .serializers import FederatedTaskSerializer
 from backend.pagination import CustomPagination
 from rest_framework.generics import GenericAPIView
 
 
+def get_system_config():
+    sysconfig = SystemConfig.objects.filter(is_active=True).first()
+    if not sysconfig:
+       raise Exception("请先配置系统参数")
+    config_data = sysconfig.config_data
+    federated = config_data.get("federated")
+    if not federated:
+        raise Exception("请先配置联邦学习参数")
+    return federated.get("rounds", 10), federated.get("aggregation", "fedavg"), federated.get("participationRate", 50)
 class FederatedTaskView(GenericAPIView):
 
     queryset = FederatedTask.objects.select_related(
-    'region_node', 'model_info', 'model_version'
+    'region_node', 'model_info', 'model_version', 'created_by'
     )
     serializer_class = FederatedTaskSerializer
     pagination_class = CustomPagination
@@ -20,9 +29,10 @@ class FederatedTaskView(GenericAPIView):
         try:
             data = request.data
             data["created_by"] = request.user.id
-            data["model_info"] = ModelInfo.objects.get(id=data["model_info"])
-            data["model_version"] = ModelVersion.objects.get(id=data["model_version"])
-            data["region_node"] = RegionNode.objects.get(id=data["region_node"])
+            rounds, aggregation_method, participation_rate = get_system_config()
+            data["rounds"] = rounds
+            data["aggregation_method"] = aggregation_method
+            data["participation_rate"] = participation_rate
             serializer = self.get_serializer(data=data)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
@@ -54,6 +64,11 @@ class FederatedTaskView(GenericAPIView):
             task_id = request.data.get("id")
             task = self.queryset.get(id=task_id)
             data = request.data
+            rounds, aggregation_method, participation_rate = get_system_config()
+            data["rounds"] = rounds
+            data["aggregation_method"] = aggregation_method
+            data["participation_rate"] = participation_rate
+
             serializer = self.get_serializer(task, data=data, partial=True)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()

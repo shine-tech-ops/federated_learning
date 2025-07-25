@@ -30,6 +30,10 @@ class FederatedTaskSerializer(serializers.ModelSerializer):
         ret['region_node_detail'] = RegionNodeSerializer(obj.region_node).data
         ret['model_info_detail'] = ModelInfoSerializer(obj.model_info).data
         ret['model_version_detail'] = ModelVersionSerializer(obj.model_version).data
+        sysconfig = SystemConfig.objects.filter(is_active=True).first()
+        ret['aggregation_method'] = sysconfig.config_data.get('federated', {}).get('aggregation')
+        ret['rounds'] = sysconfig.config_data.get('federated', {}).get('rounds', 10)
+        ret['participation_rate'] = sysconfig.config_data.get('federated', {}).get('participationRate', 0.5)
         return ret
     class Meta:
         model = FederatedTask

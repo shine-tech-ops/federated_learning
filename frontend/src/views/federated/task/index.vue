@@ -12,6 +12,7 @@
     <el-table-column prop="model_version_detail.version" label="版本" />
     <el-table-column prop="region_node_detail.name" label="区域服务器" />
     <el-table-column prop="rounds" label="训练轮次" />
+    <el-table-column prop="participation_rate" label="参与率" />
     <el-table-column prop="aggregation_method" label="聚合方式" />
     <el-table-column prop="created_at" label="创建时间" width="160" />
     <el-table-column prop="progress" label="进度">
@@ -84,19 +85,19 @@
         />
       </el-select>
     </el-form-item>
-      <el-form-item label="训练轮次" prop="rounds">
-        <el-input-number v-model="taskForm.rounds" :default="10" :min="1" />
-      </el-form-item>
-      <el-form-item label="聚合方式" prop="aggregation_method">
-        <el-select v-model="taskForm.aggregation_method" placeholder="请选择" style="width: 100%">
-          <el-option
-            v-for="method in aggregationMethods"
-            :key="method"
-            :label="method"
-            :value="method"
-          />
-        </el-select>
-      </el-form-item>
+<!--      <el-form-item label="训练轮次" prop="rounds">-->
+<!--        <el-input-number v-model="taskForm.rounds" :default="10" :min="1" />-->
+<!--      </el-form-item>-->
+<!--      <el-form-item label="聚合方式" prop="aggregation_method">-->
+<!--        <el-select v-model="taskForm.aggregation_method" placeholder="请选择" style="width: 100%">-->
+<!--          <el-option-->
+<!--            v-for="method in aggregationMethods"-->
+<!--            :key="method"-->
+<!--            :label="method"-->
+<!--            :value="method"-->
+<!--          />-->
+<!--        </el-select>-->
+<!--      </el-form-item>-->
     </el-form>
     <template #footer>
       <span class="dialog-footer">
@@ -178,10 +179,10 @@ const rules = ref<FormRules>({
     { required: true, message: '任务名称不能为空', trigger: 'blur' },
     { min: 2, max: 50, message: '长度在2到50个字符之间', trigger: 'blur' }
   ],
-  rounds: [
-    { required: true, message: '训练轮次必须大于0', trigger: 'change' },
-    { type: 'number', min: 1, message: '轮次不能小于1', trigger: 'blur' }
-  ],
+  // rounds: [
+  //   { required: true, message: '训练轮次必须大于0', trigger: 'change' },
+  //   { type: 'number', min: 1, message: '轮次不能小于1', trigger: 'blur' }
+  // ],
   model_info: [
     { required: true, message: '请选择模型', trigger: 'change' }
   ],
@@ -199,8 +200,8 @@ const taskForm = ref({
   id: null,
   name: '',
   description: '',
-  rounds: 10,
-  aggregation_method: 'fedavg',
+  // rounds: 10,
+  // aggregation_method: 'fedavg',
   model_info: null,
   model_version: null,
   region_node: null
@@ -252,7 +253,7 @@ const fetchAggregationMethods = async () => {
 onMounted(async () => {
   await Promise.all([
     fetchTasks(),
-    fetchAggregationMethods(),
+    // fetchAggregationMethods(),
     fetchModelInfos(),
     fetchRegionNodes(),
     // fetchModelVersions(),
@@ -271,8 +272,8 @@ const createTask = () => {
     id: null,
     name: '',
     description: '',
-    rounds: 10,
-    aggregation_method: aggregationMethods.value.length > 0 ? aggregationMethods.value[0] : 'fedavg',
+    // rounds: 10,
+    // aggregation_method: aggregationMethods.value.length > 0 ? aggregationMethods.value[0] : 'fedavg',
     model_info: null,
     model_version: null,
     region_node: null
@@ -286,11 +287,11 @@ const editTask = (row) => {
   taskForm.value = { ...row }
 
   // 确保聚合方式是有效值
-  if (aggregationMethods.value.includes(row.aggregation_method)) {
-    taskForm.value.aggregation_method = row.aggregation_method
-  } else if (aggregationMethods.value.length > 0) {
-    taskForm.value.aggregation_method = aggregationMethods.value[0]
-  }
+  // if (aggregationMethods.value.includes(row.aggregation_method)) {
+  //   taskForm.value.aggregation_method = row.aggregation_method
+  // } else if (aggregationMethods.value.length > 0) {
+  //   taskForm.value.aggregation_method = aggregationMethods.value[0]
+  // }
 
   // 如果有 model_info，加载模型版本并选中当前版本
   if (taskForm.value.model_info) {
