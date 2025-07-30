@@ -128,20 +128,30 @@ class ModelAdapterFactory:
         else:
             raise ValueError(f"Unsupported framework: {framework}")
 
+
 class ParameterConverter:
     """参数转换工具类"""
-    
+
     @staticmethod
     def model_to_parameters(federated_model: FederatedModel) -> fl.common.Parameters:
         """将模型参数转换为Flower Parameters"""
         parameters = federated_model.get_parameters()
-        return fl.common.ndarrays_to_parameters(parameters)
-    
+        # 确保返回的是Parameters对象而不是列表
+        if isinstance(parameters, list):
+            return fl.common.ndarrays_to_parameters(parameters)
+        return parameters
+
     @staticmethod
-    def parameters_to_model(parameters: fl.common.Parameters, 
-                          federated_model: FederatedModel) -> None:
+    def parameters_to_model(parameters: fl.common.Parameters,
+                            federated_model: FederatedModel) -> None:
         """将Flower Parameters转换为模型参数"""
-        param_arrays = fl.common.parameters_to_ndarrays(parameters)
+        # 确保parameters是正确的格式
+        if hasattr(parameters, 'tensors'):
+            param_arrays = fl.common.parameters_to_ndarrays(parameters)
+        elif isinstance(parameters, list):
+            param_arrays = parameters
+        else:
+            raise ValueError(f"Invalid parameters format: {type(parameters)}")
         federated_model.set_parameters(param_arrays)
 
 def create_evaluate_fn(federated_model: FederatedModel, x_test, y_test):

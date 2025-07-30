@@ -244,8 +244,8 @@ DCM_COMMENT_KEY = "verbose_name"
 DCM_TABLE_COMMENT_KEY = "verbose_name"
 
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_URL = "/upload/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "upload")
 FILE_UPLOAD_PERMISSIONS = 0o644
 
 

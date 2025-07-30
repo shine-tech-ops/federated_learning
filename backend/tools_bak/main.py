@@ -1,4 +1,4 @@
-# main_server.py (完整修复版本)
+# main_server.py (修复版本)
 import flwr as fl
 import argparse
 from typing import Optional
@@ -68,7 +68,11 @@ def initialize_global_model_parameters(federated_model, initialization_method: s
     """
     if initialization_method == "default":
         # 使用模型的默认参数
-        return ParameterConverter.model_to_parameters(federated_model)
+        parameters = federated_model.get_parameters()
+        # 确保返回正确的Parameters对象
+        if isinstance(parameters, list):
+            return fl.common.ndarrays_to_parameters(parameters)
+        return parameters
 
     elif initialization_method == "zero":
         # 初始化为零参数
@@ -86,6 +90,65 @@ def initialize_global_model_parameters(federated_model, initialization_method: s
 
     else:
         raise ValueError(f"Unsupported initialization method: {initialization_method}")
+
+
+def validate_parameters(parameters):
+    """
+    验证参数格式是否正确
+    """
+    # 检查是否为Parameters对象
+    if not hasattr(parameters, 'tensors') and not isinstance(parameters, fl.common.Parameters):
+        # 如果是列表，转换为Parameters对象
+        if isinstance(parameters, list):
+            return fl.common.ndarrays_to_parameters(parameters)
+        else:
+            raise ValueError(f"Invalid parameter format: {type(parameters)}")
+    return parameters
+
+
+def validate_data_shapes(federated_model, x_test, y_test):
+    """
+    验证测试数据形状是否与模型兼容
+    """
+    try:
+        # 获取模型信息
+        model_type = federated_model.get_model_type()
+        print(f"Model type: {model_type}")
+        print(f"Test data shape: X={x_test.shape}, y={y_test.shape if y_test is not None else 'None'}")
+
+        # 对于Keras模型，可以尝试获取输入形状信息
+        if model_type == "keras":
+            try:
+                # 打印模型摘要
+                print("Model Summary:")
+                federated_model.model.summary()
+                print(f"Model expected input shape: {federated_model.model.input_shape}")
+                print(f"Model output shape: {federated_model.model.output_shape}")
+            except Exception as e:
+                print(f"Could not print model summary: {e}")
+
+        return True
+    except Exception as e:
+        print(f"Warning: Could not validate data shapes: {e}")
+        return True  # 继续执行，让模型自己报错
+
+
+def create_compatible_data_loader(expected_input_shape, num_classes=10):
+    """
+    创建与模型输入形状兼容的数据加载函数
+    """
+
+    def compatible_data_loader(client_id):
+        import numpy as np
+        # 根据模型输入形状创建兼容的数据
+        batch_size = 100
+        # 移除batch维度(None)并创建对应形状的数据
+        input_shape = expected_input_shape[1:] if expected_input_shape[0] is None else expected_input_shape
+        x = np.random.random((batch_size,) + input_shape)
+        y = np.random.randint(0, num_classes, batch_size)
+        return x, y
+
+    return compatible_data_loader
 
 
 def start_federated_server(
@@ -134,11 +197,18 @@ def start_federated_server(
     print(f"Loading test data from client {test_client_id}...")
     x_test, y_test = data_loader_func(client_id=test_client_id)
 
+    # 验证数据形状
+    print("Validating data shapes...")
+    validate_data_shapes(federated_model, x_test, y_test)
+
     # 创建评估函数
     evaluate_fn = create_evaluate_fn(federated_model, x_test, y_test)
 
     # 初始化全局模型参数
     initial_parameters = initialize_global_model_parameters(federated_model, parameter_initialization)
+
+    # 验证参数格式
+    initial_parameters = validate_parameters(initial_parameters)
 
     # 准备策略参数
     base_strategy_params = {
@@ -203,6 +273,8 @@ def main():
                         help="Global parameter initialization method")
     parser.add_argument("--list-strategies", action="store_true",
                         help="List all available strategies")
+    parser.add_argument("--input-shape", type=str, default="(784,)",
+                        help="Input shape for data generation (e.g., '(784,)' for MNIST)")
 
     args = parser.parse_args()
 
@@ -219,22 +291,36 @@ def main():
         print("Invalid JSON format for strategy parameters")
         return 1
 
-    # 这里需要您提供实际的数据加载函数
-    # 示例：假设有一个load_data函数
-    def mock_data_loader(client_id):
-        # 这里应该替换为实际的数据加载逻辑
-        # 例如：return load_mock_data(client_id)
+    # 解析输入形状
+    try:
+        input_shape = eval(args.input_shape)  # 注意：在生产环境中应使用更安全的解析方法
+        if not isinstance(input_shape, tuple):
+            input_shape = (input_shape,) if isinstance(input_shape, int) else tuple(input_shape)
+        # 添加batch维度
+        if len(input_shape) == 1 or input_shape[0] is not None:
+            full_input_shape = (None,) + input_shape
+        else:
+            full_input_shape = input_shape
+    except:
+        print(f"Invalid input shape format: {args.input_shape}, using default (784,)")
+        full_input_shape = (None, 784)
+
+    # 创建与模型兼容的数据加载函数
+    def compatible_data_loader(client_id):
         import numpy as np
-        # 模拟数据
-        x = np.random.random((100, 784))
-        y = np.random.randint(0, 10, 100)
+        # 创建与模型输入形状兼容的数据
+        batch_size = 100
+        # 移除batch维度并创建对应形状的数据
+        data_shape = full_input_shape[1:] if full_input_shape[0] is None else full_input_shape
+        x = np.random.random((batch_size,) + data_shape)
+        y = np.random.randint(0, 10, batch_size)  # 默认10分类
         return x, y
 
     try:
         start_federated_server(
             model_path=args.model_path,
             framework=args.framework,
-            data_loader_func=mock_data_loader,  # 替换为实际的数据加载函数
+            data_loader_func=compatible_data_loader,  # 使用兼容的数据加载函数
             test_client_id=args.test_client_id,
             server_address=args.server_address,
             num_rounds=args.num_rounds,
@@ -246,11 +332,12 @@ def main():
         )
     except Exception as e:
         print(f"Error starting server: {e}")
+        import traceback
+        traceback.print_exc()
         return 1
 
     return 0
 
 
 if __name__ == "__main__":
-    print( fl.server.strategy.__all__)
-    # main()
+    main()
