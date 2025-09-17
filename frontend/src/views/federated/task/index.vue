@@ -20,7 +20,7 @@
         <el-progress :percentage="row.progress || 0" />
       </template>
     </el-table-column>
-    <el-table-column label="操作">
+    <el-table-column label="操作" width="240">
       <template #default="{ row }">
         <el-button size="small" type="primary" @click="editTask(row)">编辑</el-button>
         <el-popconfirm title="确定要删除这个任务吗？" @confirm="deleteTask(row.id)">
@@ -28,6 +28,7 @@
             <el-button size="small" type="danger">删除</el-button>
           </template>
         </el-popconfirm>
+        <el-button size="small" type="warning" @click="startTask(row)" v-if="row.status != 'running' && row.status != 'paused'">开始</el-button>
         <el-button size="small" type="warning" @click="pauseTask(row)" v-if="row.status === 'running'">暂停</el-button>
         <el-button size="small" type="success" @click="resumeTask(row)" v-if="row.status === 'paused'">继续</el-button>
       </template>
@@ -337,6 +338,16 @@ const deleteTask = async (taskId) => {
   }
 }
 
+// 开始任务
+ const startTask = async (taskId) => {
+  try {
+    await federatedTaskModel.startTaskApi({ id: taskId })
+    ElMessage.success('任务已开始')
+    await fetchTasks(currentPage.value)
+  } catch (error) {
+    return
+  }
+}
 // 暂停任务
 const pauseTask = async (row) => {
   try {
