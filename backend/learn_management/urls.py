@@ -6,13 +6,14 @@ from drf_yasg.utils import swagger_auto_schema
 # 导入视图类
 from .federated_task_views import (
     FederatedTaskView,
+    FederatedTaskStartView,
     FederatedTaskPauseView,
     FederatedTaskResumeView
 )
 from .system_config_views import SystemConfigView, SystemConfigActivateView, AggregationMethodView
 from .model_views import ModelVersionView, ModelRollbackView, ModelInfoView, ModelVersionDeployView
-from .region_node_view import RegionNodeView
-from .edge_node_view import EdgeNodeView
+from .region_node_view import RegionNodeView, RegionNodeHeartbeatView
+from .edge_node_view import EdgeNodeView,EdgeNodeHeartbeatView
 from .system_log_view import SystemLogView
 from .region_api_view import RegionTaskView, DeviceTaskView, DeviceRegisterView, RegionNodeListView
 
@@ -126,7 +127,22 @@ urlpatterns = [
         ),
         name="federated-task-resume"
     ),
-
+    path(
+        "federated_task/start/",
+        tagged_view(
+            FederatedTaskStartView,
+            "任务管理",
+            methods=['post'],
+            operation_summaries={
+                'post': '开始联邦任务'
+            },
+            operation_descriptions={
+                'post': '开始联邦学习任务，发送任务消息到 RabbitMQ'
+            },
+        ),
+       
+        name="federated-task-start"
+    ),   
     # ======================
     # 系统管理相关 API - tag: "系统配置"
     # ======================
@@ -283,6 +299,14 @@ urlpatterns = [
         name='region-node-list'
     ),
     path(
+        'region_nodes/heartbeat/',
+        tagged_view(
+            RegionNodeHeartbeatView,
+            "区域节点管理",
+            methods=['post'],
+        ),
+    ),
+    path(
         'edge_nodes/',
         tagged_view(
             EdgeNodeView,
@@ -302,6 +326,14 @@ urlpatterns = [
             }
         ),
         name='edge-node-list'
+    ),
+    path(
+        'edge_nodes/heartbeat/',
+        tagged_view(
+            EdgeNodeHeartbeatView,
+            "边缘节点管理",
+            methods=['post'],
+        ),
     ),
     # ======================
     # 边缘设备使用 API - tag: "边缘设备使用API"

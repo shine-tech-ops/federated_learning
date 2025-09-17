@@ -1,11 +1,17 @@
 import traceback
 
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, serializers
 from .models import FederatedTask, ModelInfo, ModelVersion, RegionNode, SystemConfig
 from .serializers import FederatedTaskSerializer
 from backend.pagination import CustomPagination
 from rest_framework.generics import GenericAPIView
+from utils.rabbitmq_client import RabbitMQClient
+from utils.common_constant import MQ_REGION_TASK_EXCHANGE
+from .network.services import NetworkConfigService
+
+class TaskStartSerializer(serializers.Serializer):
+    id = serializers.IntegerField(help_text='联邦学习任务ID')
 
 
 def get_system_config():
@@ -142,7 +148,7 @@ class FederatedTaskPauseView(GenericAPIView):
 class FederatedTaskResumeView(GenericAPIView):
     queryset = FederatedTask.objects.all()
     serializer_class = FederatedTaskSerializer
-
+    
     def put(self, request, *args, **kwargs):
         try:
             task = self.queryset.get(id=request.data.get("id"))
@@ -170,3 +176,47 @@ class FederatedTaskResumeView(GenericAPIView):
                 "data": str(e),
             }
             return Response(ret_data)
+
+
+
+
+class FederatedTaskStartView(GenericAPIView):
+    serializer_class = TaskStartSerializer
+    network_config_service = NetworkConfigService()
+    
+    def post(self, request, *args, **kwargs):
+        try:
+            task = FederatedTask.objects.get(id=request.data.get("id"))
+            region_config = self.network_config_service.get_region_routes(task.region_node.id)
+            if not region_config:
+                raise Exception("区域节点配置不存在")
+           
+            
+            if task.status == "pending" or task.status == "paused":
+                task_message = FederatedTaskSerializer(task).data
+                task_message['region_config'] = region_config
+                # TODO:调用region服务器的接口，启动任务
+                
+               
+                ret_data = {
+                    "code": status.HTTP_200_OK,
+                    "msg": "开始成功",
+                    "data": {},
+                }
+                return Response(ret_data)
+            else:
+                ret_data = {
+                    "code": status.HTTP_400_BAD_REQUEST,
+                    "msg": "任务状态错误",
+                    "data": {},
+                }
+            return Response(ret_data)
+        except Exception as e:
+            traceback.print_exc()
+            ret_data = {
+                "code": status.HTTP_400_BAD_REQUEST,
+                "msg": "开始失败",
+                "data": str(e),
+            }
+            return Response(ret_data)
+

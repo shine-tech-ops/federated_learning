@@ -36,3 +36,5 @@ MQ_DEVICE_TRAINING_EXCHANGE = "device_training_exchange"
 REDIS_AUTH_TOKEN_PREFIX = "device_auth_token:{}"
 
 HEARTBEAT_TIMEOUT = 60 * 2
+
+
