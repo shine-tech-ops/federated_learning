@@ -122,6 +122,7 @@ class FederatedClient:
 ```
 
 ## 网络搭建
+Client启动 → 获取模型 → 本地训练 → 上传更新 → Server聚合
 ### 运行
 client -> server 
 ### 启动
