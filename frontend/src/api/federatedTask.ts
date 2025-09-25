@@ -67,8 +67,8 @@ export const federatedTaskModel = {
     return service({
       developing: CONFIG.developing,
       mock: CONFIG.mock,
-      method: method.put,
-      url: `/v1/learn_management/federated_task/start`,
+      method: method.post,
+      url: `/v1/learn_management/federated_task/start/`,
       data: taskData
     })
   },
