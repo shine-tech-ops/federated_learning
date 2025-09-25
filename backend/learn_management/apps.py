@@ -29,12 +29,12 @@ class LearnManagementConfig(AppConfig):
         # thread.start()
         # logger.info("RabbitMQ device training consumer daemon start.")
 
-        # 启动后台定时任务（延迟 5 秒后执行，避免数据库未就绪）
+        # # 启动后台定时任务（延迟 5 秒后执行，避免数据库未就绪）
         # thread = threading.Thread(target=check_offline_devices, daemon=True)
         # thread.start()
         # logger.info("Starting background task for offline device check.")
 
-        # 启动 MQTT 消费线程
+        # # 启动 MQTT 消费线程
         # mqtt_thread = Thread(name="MQTT_Device_Heartbeat_Consumer", target=self.start_mqtt_heartbeat_consumer, daemon=True)
         # mqtt_thread.start()
         # logger.info("Starting MQTT Device Heartbeat Consumer thread.")

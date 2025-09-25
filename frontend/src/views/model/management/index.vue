@@ -374,33 +374,19 @@ const handleSelectionChange = (selection) => {
   selectedVersions.value = selection
 }
 
-// 下载模型版本
+// 下载模型版本（最小修改：直接把返回值当 Blob，不再读取 headers）
 const downloadVersion = async (row) => {
   try {
-    const response = await modelManagementApi.downloadModelVersion(row.id)
-    
-    // 创建下载链接
-    const blob = new Blob([response.data])
+    const blob = await modelManagementApi.downloadModelVersion(row.id)
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
+    const filename = (row?.model_file && String(row.model_file).split('/').pop()) || `${row.version || 'model'}.bin`
     link.href = url
-    
-    // 从响应头获取文件名，如果没有则使用默认名称
-    const contentDisposition = response.headers['content-disposition']
-    let filename = `${row.version}_model`
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="(.+)"/)
-      if (filenameMatch) {
-        filename = filenameMatch[1]
-      }
-    }
-    
     link.download = filename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
-    
     ElMessage.success('下载开始')
   } catch (error) {
     ElMessage.error('下载失败')
