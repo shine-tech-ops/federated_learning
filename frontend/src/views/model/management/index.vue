@@ -54,8 +54,9 @@
               <el-switch v-model="row.is_deployed" @change="toggleDeploy(row)" />
             </template>
           </el-table-column>
-          <el-table-column label="操作">
+          <el-table-column label="操作" width="150">
             <template #default="{ row }">
+              <el-button size="small" type="primary" @click="downloadVersion(row)">下载</el-button>
               <el-popconfirm title="确定要删除这个版本吗？" @confirm="deleteVersion(row)"  :disabled="row.is_deployed">
                 <template #reference>
                   <el-button size="small" type="danger"  :disabled="row.is_deployed">删除</el-button>
@@ -371,6 +372,40 @@ const deleteVersion = async (row) => {
 // 表格多选
 const handleSelectionChange = (selection) => {
   selectedVersions.value = selection
+}
+
+// 下载模型版本
+const downloadVersion = async (row) => {
+  try {
+    const response = await modelManagementApi.downloadModelVersion(row.id)
+    
+    // 创建下载链接
+    const blob = new Blob([response.data])
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    
+    // 从响应头获取文件名，如果没有则使用默认名称
+    const contentDisposition = response.headers['content-disposition']
+    let filename = `${row.version}_model`
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+      if (filenameMatch) {
+        filename = filenameMatch[1]
+      }
+    }
+    
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('下载开始')
+  } catch (error) {
+    ElMessage.error('下载失败')
+    console.error('Download error:', error)
+  }
 }
 
 onMounted(async () => {

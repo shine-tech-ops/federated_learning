@@ -339,9 +339,9 @@ const deleteTask = async (taskId) => {
 }
 
 // 开始任务
- const startTask = async (taskId) => {
+ const startTask = async (task) => {
   try {
-    await federatedTaskModel.startTaskApi({ id: taskId })
+    await federatedTaskModel.startTaskApi({  ...task })
     ElMessage.success('任务已开始')
     await fetchTasks(currentPage.value)
   } catch (error) {
