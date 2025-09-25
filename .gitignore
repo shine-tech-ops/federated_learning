@@ -38,3 +38,15 @@ indent_style = space
 indent_size = 2
 /regional/app/conf/env.py
 /backend/conf/env.py
+*.pyc
+minio/data/*
+rabbitmq/data/*
+mvp/*
+mosquitto/data/*
+mosquitto/log/*
+redis/data/*
+rabbitmq/data/*
+rabbitmq/log/*
+.DS_Store
+backend/.python-version
+logs/backend.log

@@ -10,7 +10,7 @@ from .federated_task_views import (
     FederatedTaskResumeView
 )
 from .system_config_views import SystemConfigView, SystemConfigActivateView, AggregationMethodView
-from .model_views import ModelVersionView, ModelRollbackView, ModelInfoView, ModelVersionDeployView
+from .model_views import ModelVersionView, ModelRollbackView, ModelInfoView, ModelVersionDeployView, ModelVersionDownloadView
 from .region_node_view import RegionNodeView
 from .edge_node_view import EdgeNodeView
 from .system_log_view import SystemLogView
@@ -256,6 +256,22 @@ urlpatterns = [
             }
         ),
         name='model_version_deploy'
+    ),
+
+    path(
+        'model_version/<int:id>/download/',
+        tagged_view(
+            ModelVersionDownloadView,
+            "模型管理",
+            methods=['get'],
+            operation_summaries={
+                'get': '下载模型版本文件'
+            },
+            operation_descriptions={
+                'get': '按ID下载对应的模型版本文件（基于存储路径）'
+            }
+        ),
+        name='model_version_download'
     ),
 
     # ======================

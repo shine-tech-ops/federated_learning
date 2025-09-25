@@ -26,19 +26,26 @@ class UploadFileView(GenericAPIView):
                     "msg": "未提供文件",
                     "data": None
                 })
-            upload_to_path = f"/code/upload/{upload_to_path}"
+            # 以 MEDIA_ROOT 为根目录，使用相对子目录
+            from django.conf import settings
+            safe_subdir = str(upload_to_path).strip().strip('/').replace('..', '') or 'uploads'
+            target_dir = os.path.join(settings.MEDIA_ROOT, safe_subdir)
+            os.makedirs(target_dir, exist_ok=True)
             timestamp = int(time.time() * 1000)  # 毫秒级时间戳
             new_filename = f"{timestamp}_{file.name}"
-            path = os.path.join(upload_to_path, new_filename)
-            # 确保 ContentFile 内容为 bytes 类型
-            content = ContentFile(file.read()) if isinstance(file.read(), bytes) else ContentFile(file.read().encode('utf-8'))
-            file_path = default_storage.save(path, content)
+            abs_path = os.path.join(target_dir, new_filename)
+            rel_path = f"{safe_subdir}/{new_filename}"
+            # 流式写入，避免大文件占用内存
+            with open(abs_path, 'wb') as dst:
+                for chunk in file.chunks():
+                    dst.write(chunk)
 
             ret_data = {
                 "code": status.HTTP_200_OK,
                 "msg": "创建成功",
                 "data": {
-                    "file_path": file_path,
+                    # 返回相对 MEDIA_ROOT 的路径
+                    "file_path": rel_path,
                 },
             }
             return Response(ret_data)

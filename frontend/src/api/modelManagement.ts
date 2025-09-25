@@ -99,6 +99,21 @@ export const modelManagementApi = {
       url: '/v1/learn_management/model_version/',
       data: { id }
     })
+  },
+
+  /**
+   * 下载模型版本文件（blob）
+   */
+  downloadModelVersion: (id: number) => {
+    return service({
+      developing: CONFIG.developing,
+      mock: CONFIG.mock,
+      method: method.get,
+      url: `/v1/learn_management/model_version/${id}/download/`,
+      responseType: 'blob',
+      resCheck: false,      // 防止拦截器按 JSON 解包
+      errHandle: 'none'
+    })
   }
 }
 
@@ -115,3 +130,5 @@ export const {
     deployModel,
     deleteModelVersion
 } = modelManagementApi
+
+export const { downloadModelVersion } = modelManagementApi

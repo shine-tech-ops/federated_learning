@@ -19,33 +19,34 @@ class LearnManagementConfig(AppConfig):
     name = "learn_management"
 
     def ready(self):
-        thread = Thread(name="RabbitMQ_thread_device_register", target=self.device_register_consumer)
-        thread.daemon = True
-        thread.start()
-        logger.info("RabbitMQ device register consumer daemon start.")
+        # thread = Thread(name="RabbitMQ_thread_device_register", target=self.device_register_consumer)
+        # thread.daemon = True
+        # thread.start()
+        # logger.info("RabbitMQ device register consumer daemon start.")
 
-        thread = Thread(name="RabbitMQ_thread_device_training", target=self.device_training_consumer)
-        thread.daemon = True
-        thread.start()
-        logger.info("RabbitMQ device training consumer daemon start.")
+        # thread = Thread(name="RabbitMQ_thread_device_training", target=self.device_training_consumer)
+        # thread.daemon = True
+        # thread.start()
+        # logger.info("RabbitMQ device training consumer daemon start.")
 
-        # 启动后台定时任务（延迟 5 秒后执行，避免数据库未就绪）
-        thread = threading.Thread(target=check_offline_devices, daemon=True)
-        thread.start()
-        logger.info("Starting background task for offline device check.")
+        # # 启动后台定时任务（延迟 5 秒后执行，避免数据库未就绪）
+        # thread = threading.Thread(target=check_offline_devices, daemon=True)
+        # thread.start()
+        # logger.info("Starting background task for offline device check.")
 
-        # 启动 MQTT 消费线程
-        mqtt_thread = Thread(name="MQTT_Device_Heartbeat_Consumer", target=self.start_mqtt_heartbeat_consumer, daemon=True)
-        mqtt_thread.start()
-        logger.info("Starting MQTT Device Heartbeat Consumer thread.")
+        # # 启动 MQTT 消费线程
+        # mqtt_thread = Thread(name="MQTT_Device_Heartbeat_Consumer", target=self.start_mqtt_heartbeat_consumer, daemon=True)
+        # mqtt_thread.start()
+        # logger.info("Starting MQTT Device Heartbeat Consumer thread.")
 
-        mqtt_thread = Thread(name="MQTT_Device_Training_Consumer", target=self.start_mqtt_training_consumer, daemon=True)
-        mqtt_thread.start()
-        logger.info("Starting MQTT Device Training Consumer thread.")
+        # mqtt_thread = Thread(name="MQTT_Device_Training_Consumer", target=self.start_mqtt_training_consumer, daemon=True)
+        # mqtt_thread.start()
+        # logger.info("Starting MQTT Device Training Consumer thread.")
 
-        mqtt_thread  = Thread(name="MQTT_Device_Common_Consumer", target=self.start_mqtt_common_consumer, daemon=True)
-        mqtt_thread.start()
-        logger.info("Starting MQTT Device Common Consumer thread.")
+        # mqtt_thread  = Thread(name="MQTT_Device_Common_Consumer", target=self.start_mqtt_common_consumer, daemon=True)
+        # mqtt_thread.start()
+        # logger.info("Starting MQTT Device Common Consumer thread.")
+        pass
 
     def device_register_consumer(self):
         client = DeviceRegisterMqConsumer()

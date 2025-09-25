@@ -5,6 +5,12 @@ from rest_framework.generics import GenericAPIView
 from .models import ModelVersion, ModelInfo
 from .serializers import ModelInfoSerializer, ModelVersionSerializer
 from backend.pagination import CustomPagination
+from django.conf import settings
+from django.http import FileResponse
+from django.shortcuts import get_object_or_404
+from rest_framework.permissions import IsAuthenticated
+import os
+import mimetypes
 
 
 class ModelInfoView(GenericAPIView):
@@ -195,3 +201,26 @@ class ModelVersionDeployView(GenericAPIView):
                 "msg": "操作失败",
                 "data": str(e)
             })
+
+
+class ModelVersionDownloadView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id, *args, **kwargs):
+        instance = get_object_or_404(ModelVersion, id=id)
+        rel_path = str(instance.model_file or '').lstrip('/')
+        media_root = os.path.abspath(settings.MEDIA_ROOT)
+        abs_path = os.path.abspath(os.path.join(media_root, rel_path))
+
+        if not abs_path.startswith(media_root) or not os.path.exists(abs_path):
+            return Response({
+                "code": status.HTTP_404_NOT_FOUND,
+                "msg": "文件不存在",
+                "data": None
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        filename = os.path.basename(abs_path)
+        content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+        response = FileResponse(open(abs_path, 'rb'), content_type=content_type)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
