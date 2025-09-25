@@ -60,6 +60,18 @@ export const federatedTaskModel = {
       data: taskData
     })
   },
+  /**
+   * 开始任务
+   */
+  startTaskApi: (taskData: any) => {
+    return service({
+      developing: CONFIG.developing,
+      mock: CONFIG.mock,
+      method: method.post,
+      url: `/v1/learn_management/federated_task/start/`,
+      data: taskData
+    })
+  },
 
   /**
    * 暂停任务

@@ -19,6 +19,8 @@ class EdgeNodeView(GenericAPIView):
         try:
             data = request.data
             data["created_by"] = request.user.id
+            # TODO：device id 如何获取需要重新设计
+            data["device_id"] = request.data.get("device_id", "123")
             serializer = self.get_serializer(data=data)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
@@ -91,3 +93,13 @@ class EdgeNodeView(GenericAPIView):
                 "data": str(e),
             }
             return Response(ret_data)
+
+
+class EdgeNodeHeartbeatView(GenericAPIView):
+    queryset = EdgeNode.objects.all()
+    serializer_class = EdgeNodeSerializer
+    pagination_class = CustomPagination
+
+
+    def post(self, request, *args, **kwargs):
+        pass
