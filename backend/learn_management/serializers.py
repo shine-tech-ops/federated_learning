@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import FederatedTask, SystemConfig, ModelVersion, ModelInfo, RegionNode, EdgeNode, TrainingRecord, OperationLog
+from .models import FederatedTask, SystemConfig, ModelVersion, ModelInfo, RegionNode, EdgeNode, TrainingRecord, OperationLog, ModelInferenceLog
 from user.serializers import CommonUserSerializer
 
 class SystemConfigSerializer(serializers.ModelSerializer):
@@ -78,3 +78,21 @@ class OperationLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = OperationLog
         exclude = ['response_body']
+
+class ModelInferenceLogSerializer(serializers.ModelSerializer):
+    model_version_detail = serializers.SerializerMethodField()
+    edge_node_detail = serializers.SerializerMethodField()
+    created_by_detail = CommonUserSerializer(source='created_by', read_only=True)
+
+    def get_model_version_detail(self, obj):
+        return ModelVersionSerializer(obj.model_version).data
+
+    def get_edge_node_detail(self, obj):
+        if obj.edge_node:
+            return EdgeNodeSerializer(obj.edge_node).data
+        return None
+
+    class Meta:
+        model = ModelInferenceLog
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at', 'created_by']

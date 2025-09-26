@@ -240,6 +240,31 @@ class TrainingRecord(models.Model):
 
 
 
+class ModelInferenceLog(models.Model):
+ 
+
+    model_version = models.ForeignKey('ModelVersion', on_delete=models.CASCADE, related_name='inference_logs', verbose_name="模型版本")
+    edge_node = models.ForeignKey('EdgeNode', on_delete=models.CASCADE, null=True, blank=True, related_name='inference_logs', verbose_name="边缘设备")
+    input_data = models.JSONField(verbose_name="输入数据")
+    output_data = models.JSONField(null=True, blank=True, verbose_name="输出数据")
+    error_message = models.TextField(null=True, blank=True, verbose_name="错误信息")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+    created_by = models.ForeignKey(
+        AuthUserExtend, 
+        on_delete=models.SET_NULL, 
+        null=True,
+        related_name='model_inference_logs_created_by',
+        verbose_name="创建人"
+    )
+
+    class Meta:
+        db_table = "model_inference_log"
+        db_table_comment = "模型推理日志表"
+        verbose_name = "模型推理日志"
+        ordering = ["-id"]
+
+
 class OperationLog(models.Model):
     user = models.ForeignKey(AuthUserExtend, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="用户")
     ip = models.CharField(max_length=100, null=True, blank=True, verbose_name="IP地址")

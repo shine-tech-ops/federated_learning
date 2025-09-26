@@ -1,6 +1,7 @@
 # learn_management/urls.py
 
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 from drf_yasg.utils import swagger_auto_schema
 
 # 导入视图类
@@ -12,6 +13,7 @@ from .federated_task_views import (
 )
 from .system_config_views import SystemConfigView, SystemConfigActivateView, AggregationMethodView
 from .model_views import ModelVersionView, ModelRollbackView, ModelInfoView, ModelVersionDeployView, ModelVersionDownloadView
+from .model_inference_views import ModelInferenceLogView
 from .region_node_view import RegionNodeView
 from .edge_node_view import EdgeNodeView
 from .system_log_view import SystemLogView
@@ -393,6 +395,7 @@ urlpatterns = [
         ),
         name='device-task'
     ),
+
     path(
         'device/register/',
         tagged_view(
@@ -407,5 +410,30 @@ urlpatterns = [
             }
         ),
         name='device-register'
+    ),
+
+    # ======================
+    # 模型推理日志相关 API - tag: "模型推理"
+    # ======================
+    path(
+        'model_inference/',
+        tagged_view(
+            ModelInferenceLogView,
+            "模型推理",
+            methods=['get', 'post', 'put', 'delete'],
+            operation_summaries={
+                'get': '查询模型推理日志列表',
+                'post': '创建新的推理日志',
+                'put': '更新推理日志信息',
+                'delete': '删除推理日志'
+            },
+            operation_descriptions={
+                'get': '查询模型推理的历史记录，包括输入输出数据、执行时间等',
+                'post': '记录新的模型推理结果，包括输入数据和输出结果',
+                'put': '更新推理日志的状态或补充信息',
+                'delete': '删除指定的推理日志记录'
+            }
+        ),
+        name='model-inference-log'
     ),
 ]
