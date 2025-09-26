@@ -64,3 +64,5 @@ backend/.python-version
 backend/.DS_Store
 .DS_Store
 
+backend/.venv/*
+backend/venv/*
