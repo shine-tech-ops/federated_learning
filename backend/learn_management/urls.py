@@ -315,14 +315,6 @@ urlpatterns = [
         name='region-node-list'
     ),
     path(
-        'region_nodes/heartbeat/',
-        tagged_view(
-            RegionNodeHeartbeatView,
-            "区域节点管理",
-            methods=['post'],
-        ),
-    ),
-    path(
         'edge_nodes/',
         tagged_view(
             EdgeNodeView,
@@ -342,14 +334,6 @@ urlpatterns = [
             }
         ),
         name='edge-node-list'
-    ),
-    path(
-        'edge_nodes/heartbeat/',
-        tagged_view(
-            EdgeNodeHeartbeatView,
-            "边缘节点管理",
-            methods=['post'],
-        ),
     ),
     # ======================
     # 边缘设备使用 API - tag: "边缘设备使用API"

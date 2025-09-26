@@ -84,14 +84,3 @@ class RegionNodeView(GenericAPIView):
                 "data": str(e),
             }
             return Response(ret_data)
-
-
-
-class RegionNodeHeartbeatView(GenericAPIView):
-    queryset = RegionNode.objects.all()
-    serializer_class = RegionNodeSerializer
-    pagination_class = CustomPagination
-
-
-    def post(self, request, *args, **kwargs):
-        pass

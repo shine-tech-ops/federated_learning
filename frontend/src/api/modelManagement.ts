@@ -128,7 +128,7 @@ export const {
     createModelVersion,
     fetchModelVersions,
     deployModel,
-    deleteModelVersion
+    deleteModelVersion,
+    downloadModelVersion
 } = modelManagementApi
 
-export const { downloadModelVersion } = modelManagementApi

@@ -378,6 +378,7 @@ const handleSelectionChange = (selection) => {
 const downloadVersion = async (row) => {
   try {
     const blob = await modelManagementApi.downloadModelVersion(row.id)
+    console.log(blob)
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     const filename = (row?.model_file && String(row.model_file).split('/').pop()) || `${row.version || 'model'}.bin`
