@@ -290,9 +290,9 @@ class FederatedTaskStartView(GenericAPIView):
             # 发送到 RabbitMQ
             try:
                 rabbitmq_client = RabbitMQClient()
-                # 使用任务ID作为队列名称，确保每个任务有独立的队列
+                # 使用区域节点ID作为Exchange名称
                 exchange_name = f"federated_task_{task.region_node.id}"
-                logger.info(f"Sending task data to RabbitMQ: {task_data}")
+                logger.info(f"发送到 Exchange: {exchange_name}")
                 rabbitmq_client.publisher(exchange_name, task_data)
                 
                 return Response({
