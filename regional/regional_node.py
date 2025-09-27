@@ -16,6 +16,7 @@ from app.utils.rabbitmq_client import RabbitMQClient
 from app.utils.mqtt_client import MQTTClient
 from app.utils.http_client import HTTPClient
 from app.service.task_manager import TaskManager
+from app.flower.server_manager import FlowerServerManager
 
 
 class RegionalNode:
@@ -40,6 +41,9 @@ class RegionalNode:
         self.rabbitmq_client = RabbitMQClient(self.config)  # 接收中央服务器指令
         self.mqtt_client = MQTTClient(self.config)          # 与边缘设备通讯
         self.http_client = HTTPClient(self.config.central_server)  # 向中央服务器上报状态
+        
+        # Flower 服务器管理器
+        self.flower_server = FlowerServerManager(self.region_id)
         
         # 运行状态
         self.running = False
@@ -318,14 +322,18 @@ class RegionalNode:
     
     def _notify_devices_task_start(self, task_data: Dict[str, Any]):
         """通知边缘设备任务开始"""
-        # 获取边缘设备列表
+        # 1. 先启动 Flower 服务器
+        logger.info("启动 Flower 服务器...")
+        flower_server_info = self.flower_server.start_server(task_data)
+        
+        # 2. 获取边缘设备列表
         edge_devices = task_data.get('edge_devices', [])
         
         if not edge_devices:
             logger.warning("没有找到在线的边缘设备")
             return
         
-        # 为每个设备发送任务开始指令
+        # 3. 为每个设备发送任务开始指令（包含 Flower 服务器信息）
         for device in edge_devices:
             device_id = device.get('device_id')
             if not device_id:
@@ -341,7 +349,8 @@ class RegionalNode:
                 "model_version": task_data['model_version'],
                 "rounds": task_data['rounds'],
                 "aggregation_method": task_data['aggregation_method'],
-                "device_info": device  # 包含设备信息
+                "device_info": device,  # 包含设备信息
+                "flower_server": flower_server_info  # 添加 Flower 服务器信息
             }
             
             self.mqtt_client.publish(topic, json.dumps(message))
@@ -359,6 +368,10 @@ class RegionalNode:
     
     def _notify_devices_task_stop(self, task_data: Dict[str, Any]):
         """通知边缘设备任务停止"""
+        # 先停止 Flower 服务器
+        self.flower_server.stop_server()
+        
+        # 然后通知设备
         self._notify_devices_by_action(task_data, 'task_stop')
     
     def _notify_devices_by_action(self, task_data: Dict[str, Any], action: str):
@@ -457,6 +470,9 @@ class RegionalNode:
         if hasattr(self, 'http_client'):
             logger.info("关闭 HTTP 客户端 (状态上报)...")
             self.http_client.close()
+        if hasattr(self, 'flower_server'):
+            logger.info("关闭 Flower 服务器...")
+            self.flower_server.stop_server()
         
         logger.info("区域节点服务已停止")
 
