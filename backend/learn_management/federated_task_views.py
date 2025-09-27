@@ -1,4 +1,7 @@
 import traceback
+import json
+from datetime import datetime
+from loguru import logger
 
 from rest_framework.response import Response
 from rest_framework import status, serializers
@@ -6,7 +9,7 @@ from .models import FederatedTask, ModelInfo, ModelVersion, RegionNode, SystemCo
 from .serializers import FederatedTaskSerializer
 from backend.pagination import CustomPagination
 from rest_framework.generics import GenericAPIView
-from .network.services import NetworkConfigService
+from utils.rabbitmq_client import RabbitMQClient
 
 class TaskStartSerializer(serializers.Serializer):
     id = serializers.IntegerField(help_text='联邦学习任务ID')
@@ -179,55 +182,147 @@ class FederatedTaskResumeView(GenericAPIView):
 
 
 class FederatedTaskStartView(GenericAPIView):
+    """
+    联邦学习任务启动视图
+    启动任务并将任务信息发送到 RabbitMQ 供 region node 消费
+    """
+    queryset = FederatedTask.objects.select_related(
+        'region_node', 'model_info', 'model_version', 'created_by'
+    )
     serializer_class = TaskStartSerializer
-    network_config_service = NetworkConfigService()
-    
+
     def post(self, request, *args, **kwargs):
+        """
+        启动联邦学习任务
+        1. 验证任务ID
+        2. 检查任务状态
+        3. 更新任务状态为 running
+        4. 发送任务信息到 RabbitMQ
+        """
         try:
-            # 直接使用请求中的任务数据
-            task_data = request.data
-            
-            # 获取区域节点配置
-            region_id = task_data.get('region_node_detail').get('id')
-            region_config = self.network_config_service.get_region_routes(region_id)
-            if not region_config:
-                raise Exception("区域节点配置不存在")
-           
-            # 检查任务状态
-            if task_data['status'] in ["pending", "paused"]:
-                # 准备任务消息
-                task_message = task_data
-                task_message['region_config'] = region_config
-                
-                # TODO:调用region服务器的接口，启动任务
-                
-                ret_data = {
-                    "code": status.HTTP_200_OK,
-                    "msg": "开始成功",
-                    "task_message": task_message,
-                    "data": {},
-                }
-                return Response(ret_data)
-            else:
-                ret_data = {
+            serializer = self.get_serializer(data=request.data)
+            if not serializer.is_valid():
+                return Response({
                     "code": status.HTTP_400_BAD_REQUEST,
-                    "msg": "任务状态错误",
+                    "msg": "参数验证失败",
+                    "data": serializer.errors,
+                })
+
+            task_id = serializer.validated_data['id']
+            
+            # 获取任务对象
+            try:
+                task = self.queryset.get(id=task_id)
+            except FederatedTask.DoesNotExist:
+                return Response({
+                    "code": status.HTTP_404_NOT_FOUND,
+                    "msg": "任务不存在",
                     "data": {},
-                }
-                return Response(ret_data)
+                })
+
+            # 检查任务状态
+            if task.status not in ['pending', 'paused']:
+                return Response({
+                    "code": status.HTTP_400_BAD_REQUEST,
+                    "msg": f"任务状态错误，当前状态: {task.get_status_display()}",
+                    "data": {"current_status": task.status},
+                })
+
+            # 检查必要的关联对象
+            if not task.region_node:
+                return Response({
+                    "code": status.HTTP_400_BAD_REQUEST,
+                    "msg": "任务未关联区域节点",
+                    "data": {},
+                })
+
+            if not task.model_info or not task.model_version:
+                return Response({
+                    "code": status.HTTP_400_BAD_REQUEST,
+                    "msg": "任务未关联模型信息或模型版本",
+                    "data": {},
+                })
+
+            # 更新任务状态
+            task.status = 'running'
+            task.updated_at = datetime.now()
+            task.save()
+
+            # 准备发送到 RabbitMQ 的任务数据
+            task_data = {
+                "task_id": task.id,
+                "task_name": task.name,
+                "description": task.description,
+                "rounds": task.rounds,
+                "aggregation_method": task.aggregation_method,
+                "participation_rate": task.participation_rate,
+                "status": task.status,
+                "created_at": task.created_at.isoformat(),
+                "updated_at": task.updated_at.isoformat(),
+                "region_node": {
+                    "id": task.region_node.id,
+                    "name": task.region_node.name,
+                    "ip_address": task.region_node.ip_address,
+                    "description": task.region_node.description,
+                },
+                "model_info": {
+                    "id": task.model_info.id,
+                    "name": task.model_info.name,
+                    "description": task.model_info.description,
+                },
+                "model_version": {
+                    "id": task.model_version.id,
+                    "version": task.model_version.version,
+                    "model_file": task.model_version.model_file,
+                    "description": task.model_version.description,
+                    "accuracy": task.model_version.accuracy,
+                    "loss": task.model_version.loss,
+                    "metrics": task.model_version.metrics,
+                },
+                "created_by": {
+                    "id": task.created_by.id,
+                    "name": task.created_by.name,
+                },
+                "message_type": "federated_task_start",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            # 发送到 RabbitMQ
+            try:
+                rabbitmq_client = RabbitMQClient()
+                # 使用任务ID作为队列名称，确保每个任务有独立的队列
+                exchange_name = f"federated_task_{task.region_node.id}"
+                logger.info(f"Sending task data to RabbitMQ: {task_data}")
+                rabbitmq_client.publisher(exchange_name, task_data)
                 
-        except FederatedTask.DoesNotExist:
-            return Response({
-                "code": status.HTTP_404_NOT_FOUND,
-                "msg": "任务不存在",
-                "data": {},
-            })
+                return Response({
+                    "code": status.HTTP_200_OK,
+                    "msg": "任务启动成功，已发送到区域节点",
+                    "data": {
+                        "task_id": task.id,
+                        "task_name": task.name,
+                        "status": task.status,
+                        "region_node": task.region_node.name,
+                        "exchange_name": exchange_name,
+                    },
+                })
+                
+            except Exception as mq_error:
+                # 如果 RabbitMQ 发送失败，回滚任务状态
+                task.status = 'pending'
+                task.save()
+                
+                return Response({
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "msg": f"任务启动失败，RabbitMQ 发送错误: {str(mq_error)}",
+                    "data": {},
+                })
+
         except Exception as e:
             traceback.print_exc()
-            ret_data = {
-                "code": status.HTTP_400_BAD_REQUEST,
-                "msg": "开始失败",
+            return Response({
+                "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "msg": "任务启动失败",
                 "data": str(e),
-            }
-            return Response(ret_data)
-
+            })
+   
