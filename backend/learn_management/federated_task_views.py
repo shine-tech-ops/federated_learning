@@ -248,6 +248,19 @@ class FederatedTaskStartView(GenericAPIView):
             task.updated_at = datetime.now()
             task.save()
 
+            # 获取该区域节点的所有边缘设备
+            edge_nodes = task.region_node.edge_nodes.all()
+            edge_devices = []
+            for edge_node in edge_nodes:
+                edge_devices.append({
+                    "device_id": edge_node.device_id,
+                    "ip_address": edge_node.ip_address,
+                    "device_context": edge_node.device_context,
+                    "status": edge_node.status,
+                    "last_heartbeat": edge_node.last_heartbeat.isoformat() if edge_node.last_heartbeat else None,
+                    "description": edge_node.description,
+                })
+
             # 准备发送到 RabbitMQ 的任务数据
             task_data = {
                 "task_id": task.id,
@@ -265,6 +278,7 @@ class FederatedTaskStartView(GenericAPIView):
                     "ip_address": task.region_node.ip_address,
                     "description": task.region_node.description,
                 },
+                "edge_devices": edge_devices,  # 添加边缘设备信息
                 "model_info": {
                     "id": task.model_info.id,
                     "name": task.model_info.name,
@@ -291,7 +305,7 @@ class FederatedTaskStartView(GenericAPIView):
             try:
                 rabbitmq_client = RabbitMQClient()
                 # 使用区域节点ID作为Exchange名称
-                exchange_name = f"federated_task_{task.region_node.id}"
+                exchange_name = f"federated_task_region_{task.region_node.id}"
                 logger.info(f"发送到 Exchange: {exchange_name}")
                 rabbitmq_client.publisher(exchange_name, task_data)
                 
