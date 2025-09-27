@@ -11,35 +11,27 @@ services:
       - ./mosquitto/log/:/mosquitto/log
     networks:
       - regional
-  redis:
-    image: redis:7.2.5
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./redis/data:/data
-      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
-    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-    networks:
-      - regional
+      
   regional:
     build:
       context: .
       dockerfile: ./dockers/regional.Dockerfile
-    entrypoint: [ "/bin/sh", "-c", "python run.py" ]
+    entrypoint: [ "/bin/sh", "-c", "cd /code && python run.py" ]
     volumes:
       - ./regional:/code
-    ports:
-      - "8003:8000"
+      - ./logs:/code/logs
     environment:
+      - REGION_ID=region-001
       - RABBITMQ_USER=rabbitmq
       - RABBITMQ_PASSWORD=rabbitmq
       - RABBITMQ_HOST=192.168.3.174
       - RABBITMQ_PORT=5672
-      - X_API_TOKEN=fNKZrhZlRGdqBCKZkgvpENkRIsorvRGBHUMoMEtobuU
-      - CENTRE_API_URL=http://192.168.3.174:8002
+      - MQTT_BROKER_HOST=mqtt
+      - MQTT_BROKER_PORT=1883
+      - MQTT_USER=mqtt
+      - MQTT_PASSWORD=mqtt2024#
     depends_on:
       - mqtt
-      - redis
     networks:
       - regional
 networks:

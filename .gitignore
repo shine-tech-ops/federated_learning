@@ -66,3 +66,5 @@ backend/.DS_Store
 
 backend/.venv/*
 backend/venv/*
+regional/.reginoal/*
+regional/logs/regional.log

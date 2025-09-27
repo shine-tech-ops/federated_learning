@@ -1,29 +1,42 @@
-from app import create_app
-from threading import Thread
-from loguru import logger
+#!/usr/bin/env python3
+"""
+Regional Node 启动脚本
+简化的区域节点，只负责消息队列通信
+"""
 
-from flasgger import Swagger
-from flask_cors import CORS
+from regional_node import RegionalNode
+from loguru import logger
 import os
 
-app = create_app()
-CORS(app, methods=["*"], origins="*", headers=["*"], supports_credentials=True, expose_headers=["*"], allow_headers=["*"], automatic_options=True)
 
-# 启用 Swagger，默认模板会自动生成
-swagger = Swagger(app)
-
-if __name__ == '__main__':
+def main():
+    """主函数"""
+    from config import config
+    
+    # 创建日志目录
+    os.makedirs("logs", exist_ok=True)
+    
+    # 配置日志
     logger.add(
-        "logs/backend.log",
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
-        rotation="10 MB",
-        filter="",
-        level="INFO",
+        config.logging['file'],
+        format=config.logging['format'],
+        rotation=config.logging['max_size'],
+        level=config.logging['level'],
         encoding="utf-8",
     )
+    
+    # 显示配置信息
+    logger.info(f"=== Regional Node 启动 ===")
+    logger.info(f"区域ID: {config.region_id}")
+    logger.info(f"节点名称: {config.node_name}")
+    logger.info(f"RabbitMQ: {config.rabbitmq['host']}:{config.rabbitmq['port']}")
+    logger.info(f"MQTT: {config.mqtt['host']}:{config.mqtt['port']}")
+    logger.info(f"调试模式: {config.debug['enabled']}")
+    
+    # 启动区域节点
+    node = RegionalNode()
+    node.start()
 
-    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-        # 启动 MQTT 消费线程
-        pass
 
-    app.run(debug=True, host='0.0.0.0', port=8000)
+if __name__ == "__main__":
+    main()
