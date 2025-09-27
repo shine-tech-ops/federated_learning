@@ -75,6 +75,14 @@ class Config:
             'retry_delay': int(self._get_env('RETRY_DELAY', '5'))
         }
         
+        # 中央服务器配置
+        self.central_server = {
+            'url': self._get_env('CENTRAL_SERVER_URL', 'http://localhost:8000'),
+            'timeout': int(self._get_env('CENTRAL_SERVER_TIMEOUT', '30')),
+            'retry_attempts': int(self._get_env('CENTRAL_SERVER_RETRY_ATTEMPTS', '3')),
+            'retry_delay': int(self._get_env('CENTRAL_SERVER_RETRY_DELAY', '5'))
+        }
+        
         # 调试配置
         self.debug = {
             'enabled': self._get_env('DEBUG', 'false').lower() == 'true',
@@ -87,20 +95,28 @@ class Config:
         return os.environ.get(key, default)
     
     def get_rabbitmq_exchange(self) -> str:
-        """获取 RabbitMQ Exchange 名称"""
-        return f"{self.rabbitmq['exchange_prefix']}_{self.region_id}"
+        """获取 RabbitMQ Exchange 名称 - 由中央服务器创建"""
+        return f"federated_task_region_{self.region_id}"
     
     def get_rabbitmq_queue(self) -> str:
         """获取 RabbitMQ Queue 名称"""
         return f"{self.rabbitmq['queue_prefix']}_{self.region_id}_tasks"
     
     def get_mqtt_topic(self, device_id: str, action: str) -> str:
-        """获取 MQTT 主题名称"""
+        """获取 MQTT 主题名称 - 用于特定设备"""
         return f"{self.mqtt['topic_prefix']}/{device_id}/{action}"
     
     def get_mqtt_wildcard_topic(self, action: str) -> str:
-        """获取 MQTT 通配符主题名称"""
+        """获取 MQTT 通配符主题名称（用于订阅所有设备的消息）"""
         return f"{self.mqtt['topic_prefix']}/+/{action}"
+    
+    def get_mqtt_command_topic(self, action: str) -> str:
+        """获取 MQTT 命令主题名称（用于向所有设备发送命令）"""
+        return f"{self.mqtt['topic_prefix']}/command/{action}"
+    
+    def get_mqtt_device_command_topic(self, device_id: str, action: str) -> str:
+        """获取 MQTT 设备命令主题名称（用于向特定设备发送命令）"""
+        return f"federated_task_device_{device_id}/{action}"
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典格式"""

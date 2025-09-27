@@ -13,6 +13,9 @@ python-dotenv==1.0.0
 requests==2.32.2
 PyYAML==6.0.2
 
+# HTTP 客户端依赖（用于向中央服务器上报状态）
+# requests 已在上面添加
+
 
 
 

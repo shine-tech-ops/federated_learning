@@ -56,17 +56,21 @@ class RabbitMQClient:
             raise
     
     def consumer(self, exchange: str, queue: str, callback: Callable):
-        """消费消息"""
+        """消费消息 - 只消费，不创建 Exchange"""
         if not self.connection or self.connection.is_closed:
             self.connect()
         
         try:
-            # 声明 exchange
-            self.channel.exchange_declare(
-                exchange=exchange,
-                exchange_type='fanout',
-                durable=True
-            )
+            # 检查 Exchange 是否存在（不创建）
+            try:
+                self.channel.exchange_declare(
+                    exchange=exchange,
+                    passive=True  # 只检查是否存在，不创建
+                )
+                logger.info(f"Exchange {exchange} 已存在，开始消费")
+            except pika.exceptions.AMQPChannelError:
+                logger.error(f"Exchange {exchange} 不存在，请确保中央服务器已创建")
+                raise
             
             # 声明队列
             result = self.channel.queue_declare(
@@ -98,33 +102,9 @@ class RabbitMQClient:
             raise
     
     def publish(self, exchange: str, message: dict):
-        """发布消息"""
-        if not self.connection or self.connection.is_closed:
-            self.connect()
-        
-        try:
-            # 声明 exchange
-            self.channel.exchange_declare(
-                exchange=exchange,
-                exchange_type='fanout',
-                durable=True
-            )
-            
-            # 发布消息
-            self.channel.basic_publish(
-                exchange=exchange,
-                routing_key='',
-                body=json.dumps(message),
-                properties=pika.BasicProperties(
-                    delivery_mode=2,  # 持久化消息
-                )
-            )
-            
-            logger.info(f"已发布消息到 {exchange}: {message}")
-            
-        except Exception as e:
-            logger.error(f"发布消息失败: {e}")
-            raise
+        """发布消息 - 区域节点不通过 RabbitMQ 上报，此方法已废弃"""
+        logger.warning("区域节点不应通过 RabbitMQ 发布消息，请使用 HTTP API 上报状态")
+        raise NotImplementedError("区域节点应使用 HTTP API 上报状态，不通过 RabbitMQ")
     
     def close(self):
         """关闭连接"""
