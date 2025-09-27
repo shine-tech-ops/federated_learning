@@ -339,23 +339,42 @@ const deleteTask = async (taskId) => {
 }
 
 // 开始任务
- const startTask = async (task) => {
+const startTask = async (task) => {
   try {
-    await federatedTaskModel.startTaskApi({  ...task })
-    ElMessage.success('任务已开始')
+    const response = await federatedTaskModel.startTaskApi({ id: task.id })
+    console.log(response)
+    // 显示详细的成功提示
+    ElMessage.success({
+      message: `任务 "${task.name}" 已成功启动！已发送到区域节点 "${response.region_node}"`,
+      duration: 5000,
+      showClose: true
+    })
+    
+    // 刷新任务列表
     await fetchTasks(currentPage.value)
   } catch (error) {
-    return
+    // 显示错误提示
+    ElMessage.error({
+      message: `任务启动失败: ${error.message || '未知错误'}`,
+      duration: 5000,
+      showClose: true
+    })
+    console.error('启动任务失败:', error)
   }
 }
 // 暂停任务
 const pauseTask = async (row) => {
   try {
     await federatedTaskModel.pauseTaskApi({ id: row.id })
-    ElMessage.success('任务已暂停')
+    ElMessage.success(`任务 "${row.name}" 已暂停`)
     await fetchTasks(currentPage.value)
   } catch (error) {
-    return
+    ElMessage.error({
+      message: `任务暂停失败: ${error.message || '未知错误'}`,
+      duration: 5000,
+      showClose: true
+    })
+    console.error('暂停任务失败:', error)
   }
 }
 
@@ -363,10 +382,15 @@ const pauseTask = async (row) => {
 const resumeTask = async (row) => {
   try {
     await federatedTaskModel.resumeTaskApi({ id: row.id })
-    ElMessage.success('任务已继续')
+    ElMessage.success(`任务 "${row.name}" 已继续`)
     await fetchTasks(currentPage.value)
   } catch (error) {
-    return
+    ElMessage.error({
+      message: `任务恢复失败: ${error.message || '未知错误'}`,
+      duration: 5000,
+      showClose: true
+    })
+    console.error('恢复任务失败:', error)
   }
 }
 </script>
