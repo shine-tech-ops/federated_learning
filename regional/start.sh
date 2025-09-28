@@ -12,7 +12,7 @@ fi
 
 # 激活虚拟环境
 echo "🔧 激活虚拟环境..."
-source venv/bin/activate
+source .regional_venv/bin/activate
 
 # 安装依赖
 echo "📥 安装依赖..."

@@ -89,12 +89,12 @@ class RegionalNode:
         # 连接 RabbitMQ (与中央服务器通讯)
         logger.info("🔗 正在连接 RabbitMQ (中央服务器通讯)...")
         self.rabbitmq_client.connect()
-        logger.info("✅ RabbitMQ 连接成功 - 可以接收中央服务器指令")
+        logger.info("✅ RabbitMQ 连接成功 - 可以监听中央服务器指令")
         
         # 连接 MQTT (与边缘设备通讯)
         logger.info("🔗 正在连接 MQTT (边缘设备通讯)...")
         self.mqtt_client.connect()
-        logger.info("✅ MQTT 连接成功 - 可以与边缘设备通信")
+        logger.info("✅ MQTT 连接成功 - 可以根据设备配置监听对应主题")
         
         logger.info("🎉 所有网络连接初始化完成")
     
@@ -146,6 +146,7 @@ class RegionalNode:
         logger.info(f"📥 开始监听 MQTT 消息")
         logger.info(f"   • 主题前缀: {self.config.mqtt['topic_prefix']}")
         logger.info(f"   • 来源: 边缘设备")
+        logger.info(f"   • 说明: 将根据任务中的设备配置监听对应主题")
         
         retry_count = 0
         max_retries = 5
@@ -195,9 +196,9 @@ class RegionalNode:
         """处理 RabbitMQ 消息 (来自中央服务器的指令)"""
         try:
             message = json.loads(body)
-            logger.info("\n" + "=" * 50)
+            logger.info("\n" + "=" * 60)
             logger.info("📨 收到中央服务器指令")
-            logger.info("=" * 50)
+            logger.info("=" * 60)
             logger.info(f"📋 任务ID: {message.get('task_id', 'N/A')}")
             logger.info(f"📝 任务名称: {message.get('task_name', 'N/A')}")
             logger.info(f"🔄 消息类型: {message.get('message_type', 'N/A')}")
@@ -251,7 +252,7 @@ class RegionalNode:
             logger.info("✅ 边缘设备通知完成")
             
             # 上报任务状态到中央服务器
-            logger.info("📤 正在上报任务状态到中央服务器...")
+            logger.info("📤 TODO 正在上报任务状态到中央服务器...")
             self._report_task_status_to_central_server(
                 task_id, 
                 'started', 
@@ -260,9 +261,11 @@ class RegionalNode:
             logger.info("✅ 状态上报完成")
             
             logger.info(f"🎉 任务 {task_id} 处理完成")
+            logger.info("=" * 60)
             
         except Exception as e:
             logger.error(f"❌ 处理任务开始错误: {e}")
+            logger.info("=" * 60)
             # 上报错误状态
             self._report_task_status_to_central_server(
                 task_id, 
