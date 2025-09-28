@@ -18,8 +18,15 @@ class TaskManager:
     def start_task(self, task_data: Dict[str, Any]):
         """开始任务"""
         task_id = task_data['task_id']
+        task_name = task_data.get('task_name', '未知任务')
+        rounds = task_data.get('rounds', 10)
+        aggregation_method = task_data.get('aggregation_method', 'fedavg')
         
-        logger.info(f"开始任务: {task_id}")
+        logger.info(f"🎯 任务管理器启动任务")
+        logger.info(f"   • 任务ID: {task_id}")
+        logger.info(f"   • 任务名称: {task_name}")
+        logger.info(f"   • 训练轮数: {rounds}")
+        logger.info(f"   • 聚合方法: {aggregation_method}")
         
         # 保存任务信息
         self.active_tasks[task_id] = {
@@ -28,13 +35,13 @@ class TaskManager:
             'start_time': time.time(),
             'devices': [],
             'current_round': 0,
-            'total_rounds': task_data.get('rounds', 10)
+            'total_rounds': rounds
         }
         
         # 初始化设备任务映射
         self.device_tasks[task_id] = []
         
-        logger.info(f"任务 {task_id} 已开始，共 {task_data.get('rounds', 10)} 轮")
+        logger.info(f"✅ 任务 {task_id} 已开始，共 {rounds} 轮")
     
     def pause_task(self, task_id: str):
         """暂停任务"""

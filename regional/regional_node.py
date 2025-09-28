@@ -50,70 +50,87 @@ class RegionalNode:
     
     def start(self):
         """启动区域节点服务"""
-        logger.info(f"启动区域节点服务: {self.region_id}")
+        logger.info("=" * 60)
+        logger.info("🚀 区域节点服务启动")
+        logger.info("=" * 60)
+        logger.info(f"📍 区域节点ID: {self.region_id}")
+        logger.info(f"🏷️  节点名称: {self.config.node_name}")
+        logger.info(f"🌐 网络配置:")
+        logger.info(f"   • RabbitMQ (中央服务器通讯): {self.config.rabbitmq['host']}:{self.config.rabbitmq['port']}")
+        logger.info(f"   • MQTT (边缘设备通讯): {self.config.mqtt['host']}:{self.config.mqtt['port']}")
+        logger.info(f"   • 中央服务器: {self.config.central_server['url']}")
         
         try:
             # 初始化连接
+            logger.info("\n🔌 正在初始化网络连接...")
             self._init_connections()
             
             # 启动消息队列消费者
+            logger.info("\n📡 正在启动消息队列消费者...")
             self._start_consumers()
             
             # 设置运行状态
             self.running = True
             
             # 主循环
+            logger.info("\n🔄 进入主循环，等待任务指令...")
+            logger.info("=" * 60)
             self._main_loop()
             
         except KeyboardInterrupt:
-            logger.info("收到停止信号，正在关闭服务...")
+            logger.info("\n🛑 收到停止信号，正在关闭服务...")
         except Exception as e:
-            logger.error(f"服务运行错误: {e}")
+            logger.error(f"\n❌ 服务运行错误: {e}")
         finally:
             self.stop()
     
     def _init_connections(self):
         """初始化各种连接"""
-        logger.info("初始化连接...")
-        
         # 连接 RabbitMQ (与中央服务器通讯)
-        logger.info("连接 RabbitMQ (中央服务器通讯)...")
+        logger.info("🔗 正在连接 RabbitMQ (中央服务器通讯)...")
         self.rabbitmq_client.connect()
+        logger.info("✅ RabbitMQ 连接成功 - 可以接收中央服务器指令")
         
         # 连接 MQTT (与边缘设备通讯)
-        logger.info("连接 MQTT (边缘设备通讯)...")
+        logger.info("🔗 正在连接 MQTT (边缘设备通讯)...")
         self.mqtt_client.connect()
+        logger.info("✅ MQTT 连接成功 - 可以与边缘设备通信")
         
-        logger.info("所有连接初始化完成")
+        logger.info("🎉 所有网络连接初始化完成")
     
     def _start_consumers(self):
         """启动消息队列消费者"""
-        logger.info("启动消息队列消费者...")
-        
         # 启动 RabbitMQ 消费者线程 (接收中央服务器指令)
+        logger.info("📨 启动 RabbitMQ 消费者线程...")
         rabbitmq_thread = threading.Thread(
             target=self._consume_rabbitmq_messages,
             daemon=True,
             name="RabbitMQ-Consumer"
         )
         rabbitmq_thread.start()
+        logger.info("✅ RabbitMQ 消费者已启动 - 监听中央服务器指令")
         
         # 启动 MQTT 消费者线程 (接收边缘设备状态和训练结果)
+        logger.info("📨 启动 MQTT 消费者线程...")
         mqtt_thread = threading.Thread(
             target=self._consume_mqtt_messages,
             daemon=True,
             name="MQTT-Consumer"
         )
         mqtt_thread.start()
+        logger.info("✅ MQTT 消费者已启动 - 监听边缘设备消息")
         
-        logger.info("消息队列消费者启动完成")
+        logger.info("🎉 所有消息队列消费者启动完成")
     
     def _consume_rabbitmq_messages(self):
         """消费 RabbitMQ 消息 (接收中央服务器指令)"""
         exchange_name = self.config.get_rabbitmq_exchange()
         queue_name = self.config.get_rabbitmq_queue()
         
-        logger.info(f"开始消费 RabbitMQ 消息 (中央服务器指令): {exchange_name}")
+        logger.info(f"📥 开始监听 RabbitMQ 消息")
+        logger.info(f"   • Exchange: {exchange_name}")
+        logger.info(f"   • Queue: {queue_name}")
+        logger.info(f"   • 来源: 中央服务器")
         
         try:
             self.rabbitmq_client.consumer(
@@ -122,11 +139,13 @@ class RegionalNode:
                 callback=self._handle_rabbitmq_message
             )
         except Exception as e:
-            logger.error(f"RabbitMQ 消费者错误: {e}")
+            logger.error(f"❌ RabbitMQ 消费者错误: {e}")
     
     def _consume_mqtt_messages(self):
         """消费 MQTT 消息 (接收边缘设备状态和训练结果)"""
-        logger.info(f"开始消费 MQTT 消息 (边缘设备通讯): {self.config.mqtt['topic_prefix']}")
+        logger.info(f"📥 开始监听 MQTT 消息")
+        logger.info(f"   • 主题前缀: {self.config.mqtt['topic_prefix']}")
+        logger.info(f"   • 来源: 边缘设备")
         
         retry_count = 0
         max_retries = 5
@@ -176,16 +195,25 @@ class RegionalNode:
         """处理 RabbitMQ 消息 (来自中央服务器的指令)"""
         try:
             message = json.loads(body)
-            logger.info(f"收到中央服务器指令: {message}")
+            logger.info("\n" + "=" * 50)
+            logger.info("📨 收到中央服务器指令")
+            logger.info("=" * 50)
+            logger.info(f"📋 任务ID: {message.get('task_id', 'N/A')}")
+            logger.info(f"📝 任务名称: {message.get('task_name', 'N/A')}")
+            logger.info(f"🔄 消息类型: {message.get('message_type', 'N/A')}")
+            logger.info(f"⏰ 时间戳: {message.get('timestamp', 'N/A')}")
             
             # 根据消息类型处理
             message_type = message.get('message_type')
             
             if message_type == 'federated_task_start':
+                logger.info("🚀 开始处理联邦学习任务启动指令...")
                 self._handle_task_start(message)
             elif message_type == 'federated_task_pause':
+                logger.info("⏸️  开始处理任务暂停指令...")
                 self._handle_task_pause(message)
             elif message_type == 'federated_task_resume':
+                logger.info("▶️  开始处理任务恢复指令...")
                 self._handle_task_resume(message)
             elif message_type == 'federated_task_stop':
                 self._handle_task_stop(message)
@@ -200,29 +228,44 @@ class RegionalNode:
     
     def _handle_task_start(self, task_data: Dict[str, Any]):
         """处理任务开始消息"""
-        logger.info(f"开始处理任务: {task_data['task_id']}")
+        task_id = task_data['task_id']
+        task_name = task_data.get('task_name', '未知任务')
+        rounds = task_data.get('rounds', 0)
+        devices = task_data.get('edge_devices', [])
+        
+        logger.info(f"🎯 开始处理联邦学习任务")
+        logger.info(f"   • 任务ID: {task_id}")
+        logger.info(f"   • 任务名称: {task_name}")
+        logger.info(f"   • 训练轮数: {rounds}")
+        logger.info(f"   • 参与设备数: {len(devices)}")
         
         try:
             # 通知任务管理器
+            logger.info("📋 正在启动任务管理器...")
             self.task_manager.start_task(task_data)
+            logger.info("✅ 任务管理器已启动")
             
             # 通过 MQTT 通知边缘设备
+            logger.info("📡 正在通知边缘设备启动任务...")
             self._notify_devices_task_start(task_data)
+            logger.info("✅ 边缘设备通知完成")
             
             # 上报任务状态到中央服务器
+            logger.info("📤 正在上报任务状态到中央服务器...")
             self._report_task_status_to_central_server(
-                task_data['task_id'], 
+                task_id, 
                 'started', 
                 {'region_id': self.region_id}
             )
+            logger.info("✅ 状态上报完成")
             
-            logger.info(f"任务 {task_data['task_id']} 处理完成")
+            logger.info(f"🎉 任务 {task_id} 处理完成")
             
         except Exception as e:
-            logger.error(f"处理任务开始错误: {e}")
+            logger.error(f"❌ 处理任务开始错误: {e}")
             # 上报错误状态
             self._report_task_status_to_central_server(
-                task_data['task_id'], 
+                task_id, 
                 'error', 
                 {'error': str(e)}
             )
@@ -323,21 +366,24 @@ class RegionalNode:
     def _notify_devices_task_start(self, task_data: Dict[str, Any]):
         """通知边缘设备任务开始"""
         # 1. 先启动 Flower 服务器
-        logger.info("启动 Flower 服务器...")
+        logger.info("🌺 正在启动 Flower 联邦学习服务器...")
         flower_server_info = self.flower_server.start_server(task_data)
+        logger.info(f"✅ Flower 服务器已启动: {flower_server_info}")
         
         # 2. 获取边缘设备列表
         edge_devices = task_data.get('edge_devices', [])
         
         if not edge_devices:
-            logger.warning("没有找到在线的边缘设备")
+            logger.warning("⚠️  没有找到在线的边缘设备")
             return
         
+        logger.info(f"📱 发现 {len(edge_devices)} 个边缘设备，开始通知...")
+        
         # 3. 为每个设备发送任务开始指令（包含 Flower 服务器信息）
-        for device in edge_devices:
+        for i, device in enumerate(edge_devices, 1):
             device_id = device.get('device_id')
             if not device_id:
-                logger.warning(f"设备缺少 device_id: {device}")
+                logger.warning(f"⚠️  设备 {i} 缺少 device_id: {device}")
                 continue
                 
             topic = self.config.get_mqtt_device_command_topic(device_id, 'task_start')
@@ -354,9 +400,9 @@ class RegionalNode:
             }
             
             self.mqtt_client.publish(topic, json.dumps(message))
-            logger.info(f"已通知设备 {device_id} 任务开始: {task_data['task_id']}")
+            logger.info(f"📤 已通知设备 {device_id} 任务开始: {task_data['task_id']} ({i}/{len(edge_devices)})")
         
-        logger.info(f"已通知 {len(edge_devices)} 个设备任务开始: {task_data['task_id']}")
+        logger.info(f"🎉 已通知 {len(edge_devices)} 个设备任务开始: {task_data['task_id']}")
     
     def _notify_devices_task_pause(self, task_data: Dict[str, Any]):
         """通知边缘设备任务暂停"""
@@ -416,17 +462,22 @@ class RegionalNode:
     def _report_task_status_to_central_server(self, task_id: str, status: str, details: Dict[str, Any] = None):
         """通过 HTTP API 上报任务状态到中央服务器"""
         try:
+            logger.info(f"📤 正在上报任务状态到中央服务器...")
+            logger.info(f"   • 任务ID: {task_id}")
+            logger.info(f"   • 状态: {status}")
+            logger.info(f"   • 区域ID: {self.region_id}")
+            
             success = self.http_client.report_task_status(task_id, status, self.region_id, details)
             if success:
-                logger.info(f"已上报任务 {task_id} 状态 {status} 到中央服务器")
+                logger.info(f"✅ 已上报任务 {task_id} 状态 {status} 到中央服务器")
             else:
-                logger.error(f"上报任务 {task_id} 状态失败")
+                logger.error(f"❌ 上报任务 {task_id} 状态失败")
         except Exception as e:
-            logger.error(f"上报任务状态到中央服务器失败: {e}")
+            logger.error(f"❌ 上报任务状态到中央服务器失败: {e}")
     
     def _main_loop(self):
         """主循环 - 监控任务和设备状态"""
-        logger.info("进入主循环...")
+        logger.info("🔄 进入主循环，开始监控任务和设备状态...")
         
         while self.running:
             try:
@@ -440,7 +491,7 @@ class RegionalNode:
                 time.sleep(self.config.task['status_check_interval'])
                 
             except Exception as e:
-                logger.error(f"主循环错误: {e}")
+                logger.error(f"❌ 主循环错误: {e}")
                 time.sleep(5)
     
     def _check_task_status(self):
