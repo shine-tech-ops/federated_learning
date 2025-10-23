@@ -96,7 +96,7 @@ class FlowerServerManager:
             )
             flower_logger.info("✅ 策略配置完成")
             
-            flower_logger.info("🚀 正在启动 Flower 服务器...")
+            flower_logger.info("🚀 正在启动联邦学习服务器...")
             flower_logger.info(f"   • 监听地址: {self.server_config['host']}:{self.server_config['port']}")
             flower_logger.info(f"   • 训练轮数: {self.current_task['rounds']}")
             flower_logger.info(f"   • 聚合策略: FedAvg")
@@ -114,7 +114,7 @@ class FlowerServerManager:
             flower_logger.info("└" + "─" * 58 + "┘")
             
         except Exception as e:
-            flower_logger.error(f"❌ 运行 Flower 服务器失败: {e}")
+            flower_logger.error(f"❌ 运行联邦学习服务器服务器失败: {e}")
         finally:
             self.server_running = False
     
@@ -160,7 +160,7 @@ class FlowerServerManager:
         """停止 Flower 服务器"""
         try:
             if self.server_running:
-                flower_logger.info("🛑 正在停止 Flower 服务器...")
+                flower_logger.info("🛑 正在停止联邦学习服务器...")
                 self.server_running = False
                 
                 # 等待服务器线程结束

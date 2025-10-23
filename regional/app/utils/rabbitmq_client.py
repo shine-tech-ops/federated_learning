@@ -56,21 +56,27 @@ class RabbitMQClient:
             raise
     
     def consumer(self, exchange: str, queue: str, callback: Callable):
-        """消费消息 - 只消费，不创建 Exchange"""
+        """消费消息 - 自动创建 Exchange 如果不存在"""
         if not self.connection or self.connection.is_closed:
             self.connect()
         
         try:
-            # 检查 Exchange 是否存在（不创建）
+            # 检查 Exchange 是否存在，如果不存在则自动创建
             try:
                 self.channel.exchange_declare(
                     exchange=exchange,
-                    passive=True  # 只检查是否存在，不创建
+                    passive=True  # 只检查是否存在
                 )
                 logger.info(f"Exchange {exchange} 已存在，开始消费")
             except pika.exceptions.AMQPChannelError:
-                logger.error(f"Exchange {exchange} 不存在，请确保中央服务器已创建")
-                raise
+                # Exchange 不存在，自动创建
+                logger.info(f"Exchange {exchange} 不存在，正在自动创建...")
+                self.channel.exchange_declare(
+                    exchange=exchange,
+                    exchange_type='fanout',  # 与中央服务器保持一致
+                    durable=True
+                )
+                logger.info(f"✅ Exchange {exchange} 创建成功")
             
             # 声明队列
             result = self.channel.queue_declare(
