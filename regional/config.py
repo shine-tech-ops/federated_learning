@@ -145,10 +145,7 @@ def validate_config() -> bool:
     """验证配置是否有效"""
     try:
         # 配置验证通过，因为 __init__ 已经设置了默认值
-        print(f"✅ 配置验证通过")
-        print(f"   区域ID: {config.region_id}")
-        print(f"   RabbitMQ: {config.rabbitmq['host']}:{config.rabbitmq['port']}")
-        print(f"   MQTT: {config.mqtt['host']}:{config.mqtt['port']}")
+      
         return True
         
     except Exception as e:
@@ -158,14 +155,7 @@ def validate_config() -> bool:
 
 if __name__ == "__main__":
     # 测试配置
-    print("=== Regional Node 配置信息 ===")
-    print(f"区域ID: {config.region_id}")
-    print(f"节点名称: {config.node_name}")
-    print(f"RabbitMQ: {config.rabbitmq['host']}:{config.rabbitmq['port']}")
-    print(f"MQTT: {config.mqtt['host']}:{config.mqtt['port']}")
-    print(f"最大并发任务: {config.task['max_concurrent_tasks']}")
-    print(f"调试模式: {config.debug['enabled']}")
-    print()
+
     
     # 验证配置
     validate_config()

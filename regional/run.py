@@ -25,13 +25,6 @@ def main():
         encoding="utf-8",
     )
     
-    # 显示配置信息
-    logger.info(f"=== Regional Node 启动 ===")
-    logger.info(f"区域ID: {config.region_id}")
-    logger.info(f"节点名称: {config.node_name}")
-    logger.info(f"RabbitMQ: {config.rabbitmq['host']}:{config.rabbitmq['port']}")
-    logger.info(f"MQTT: {config.mqtt['host']}:{config.mqtt['port']}")
-    logger.info(f"调试模式: {config.debug['enabled']}")
     
     # 启动区域节点
     node = RegionalNode()

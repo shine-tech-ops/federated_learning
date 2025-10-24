@@ -223,10 +223,8 @@ class RegionalNode:
                 'started', 
                 {'region_id': self.region_id}
             )
-            logger.info("Status Report Completed")
             
-            logger.info(f"Task {task_id} Processing Completed")
-            logger.info("=" * 60)
+         
             
         except Exception as e:
             logger.error(f"Task Start Processing Error: {e}")
@@ -334,9 +332,7 @@ class RegionalNode:
     def _notify_devices_task_start(self, task_data: Dict[str, Any]):
         """通知边缘设备任务开始"""
         # 1. 先启动 Flower 服务器
-        logger.info("Starting Flower Federated Learning Server...")
         flower_server_info = self.flower_server.start_server(task_data)
-        logger.info(f"Flower Server Started: {flower_server_info}")
         
         # 2. 获取边缘设备列表
         edge_devices = task_data.get('edge_devices', [])
@@ -370,7 +366,6 @@ class RegionalNode:
             self.mqtt_client.publish(topic, json.dumps(message))
             logger.info(f"Notified Device {device_id} Task Start: {task_data['task_id']} ({i}/{len(edge_devices)})")
         
-        logger.info(f"Task Start Notification Completed for {len(edge_devices)} Devices: {task_data['task_id']}")
     
     def _notify_devices_task_pause(self, task_data: Dict[str, Any]):
         """通知边缘设备任务暂停"""
@@ -430,22 +425,19 @@ class RegionalNode:
     def _report_task_status_to_central_server(self, task_id: str, status: str, details: Dict[str, Any] = None):
         """通过 HTTP API 上报任务状态到中央服务器"""
         try:
-            logger.info(f"📤 正在上报任务状态到中央服务器...")
-            logger.info(f"   • 任务ID: {task_id}")
-            logger.info(f"   • 状态: {status}")
-            logger.info(f"   • 区域ID: {self.region_id}")
+           
             
             success = self.http_client.report_task_status(task_id, status, self.region_id, details)
             if success:
-                logger.info(f"✅ 已上报任务 {task_id} 状态 {status} 到中央服务器")
+                # logger.info(f"✅ 已上报任务 {task_id} 状态 {status} 到中央服务器")
+                pass
             else:
-                logger.error(f"❌ 上报任务 {task_id} 状态失败")
+                pass
         except Exception as e:
-            logger.error(f"❌ 上报任务状态到中央服务器失败: {e}")
+            pass
     
     def _main_loop(self):
         """主循环 - 监控任务和设备状态"""
-        logger.info("🔄 进入主循环，开始监控任务和设备状态...")
         
         while self.running:
             try:

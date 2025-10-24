@@ -46,7 +46,7 @@ class MQTTHandler:
                 timeout -= 0.1
             
             if self.connected:
-                logger.info(f"设备 {self.device_id} 已连接到 MQTT Broker")
+                pass
             else:
                 raise Exception("MQTT 连接超时")
                 
