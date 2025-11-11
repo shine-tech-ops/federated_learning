@@ -48,7 +48,7 @@ class FlowerServerManager:
             
             # Configure server
             self.server_config = {
-                'host': 'localhost',
+                'host': '0.0.0.0',
                 'port': 8080,
                 'server_id': f"federated_server_{task_data['task_id']}"
             }

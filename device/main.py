@@ -101,7 +101,8 @@ class EdgeDevice:
             self.flower_client = FlowerClient(
                 device_id=self.device_id,
                 trainer=self.trainer,
-                server_address=f"{flower_server['host']}:{flower_server['port']}"
+                #server_address=f"{flower_server['host']}:{flower_server['port']}"
+                server_address=f"192.168.1.4:{flower_server['port']}"
             )
             
             # 在后台线程启动联邦学习

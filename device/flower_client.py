@@ -1,7 +1,8 @@
 """
 Flower 客户端
 """
-
+import time
+import os
 import flwr as fl
 from loguru import logger
 from typing import Dict, Any, List, Tuple
@@ -31,6 +32,9 @@ class FlowerClient(fl.client.NumPyClient):
         
         # 执行训练
         updated_parameters, num_examples, metrics = self.trainer.fit(parameters, config)
+
+        # 训练完成后保存模型
+        self._save_model_after_training(metrics)
         
         # 记录训练结果
         logger.info(f"设备 {self.device_id} 训练完成: {metrics}")
@@ -48,6 +52,30 @@ class FlowerClient(fl.client.NumPyClient):
         logger.info(f"设备 {self.device_id} 评估完成: {metrics}")
         
         return loss, num_examples, metrics
+
+    def _save_model_after_training(self, metrics: Dict[str, Any]):
+        """训练后保存模型"""
+        try:
+            # 创建模型保存目录
+            model_dir = f"models/{self.device_id}"
+            os.makedirs(model_dir, exist_ok=True)
+
+            # 生成文件名（包含时间戳和准确率）
+            timestamp = int(time.time())
+            accuracy = metrics.get('accuracy', 0)
+            filename = f"model_{timestamp}_acc_{accuracy:.4f}.pth"
+            file_path = os.path.join(model_dir, filename)
+
+            # 保存模型
+            self.trainer.save_model(file_path)
+
+            # 同时保存一份参数文件
+            param_filename = f"parameters_{timestamp}_acc_{accuracy:.4f}.pkl"
+            param_path = os.path.join(model_dir, param_filename)
+            self.trainer.save_model_parameters(param_path)
+
+        except Exception as e:
+            logger.error(f"训练后保存模型失败: {e}")
     
     def start(self):
         """启动 Flower 客户端"""

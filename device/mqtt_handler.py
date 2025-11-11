@@ -95,7 +95,7 @@ class MQTTHandler:
             return
         
         # 订阅设备专属主题
-        command_topic = f"federated_task_device_{self.device_id}/+"
+        command_topic = f"federated_task_{self.device_id}/task_start"
         self.client.subscribe(command_topic)
         logger.info(f"设备 {self.device_id} 已订阅命令主题: {command_topic}")
     
