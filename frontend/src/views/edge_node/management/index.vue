@@ -41,10 +41,13 @@
   <!-- 对话框 -->
   <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑边缘节点' : '新建边缘节点'">
     <el-form :model="form" label-width="120px" ref="formRef">
-      <el-form-item label="名称" prop="name">
-        <el-input v-model="form.name" />
+      <el-form-item label="设备ID" prop="device_id">
+        <el-input v-model="form.device_id" placeholder="请输入设备ID（唯一标识）" />
       </el-form-item>
-      <el-form-item label="所属区域">
+      <el-form-item label="IP地址" prop="ip_address">
+        <el-input v-model="form.ip_address" placeholder="请输入IP地址（可选）" />
+      </el-form-item>
+      <el-form-item label="所属区域" prop="region_node">
         <el-select v-model="form.region_node" placeholder="请选择区域" style="width: 100%">
           <el-option
             v-for="region in regionList"
@@ -53,6 +56,9 @@
             :value="region.id"
           />
         </el-select>
+      </el-form-item>
+      <el-form-item label="描述" prop="description">
+        <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述（可选）" />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -79,8 +85,10 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const form = ref({
   id: null,
-  name: '',
-  region_id: null
+  device_id: '',
+  ip_address: '',
+  region_node: null,
+  description: ''
 })
 
 const fetchEdgeNodes = async (page = 1) => {
@@ -116,8 +124,10 @@ const createEdgeNode = () => {
   isEdit.value = false
   form.value = {
     id: null,
-    name: '',
-    region_id: regionList.value.length > 0 ? regionList.value[0].id : null
+    device_id: '',
+    ip_address: '',
+    region_node: regionList.value.length > 0 ? regionList.value[0].id : null,
+    description: ''
   }
   dialogVisible.value = true
 }
