@@ -309,16 +309,13 @@ class FederatedTaskStartView(GenericAPIView):
                 logger.info(f"发送到 Exchange: {exchange_name}")
                 rabbitmq_client.publisher(exchange_name, task_data)
                 
+                # 在返回数据中添加 exchange_name 信息
+                task_data["exchange_name"] = exchange_name
+                
                 return Response({
                     "code": status.HTTP_200_OK,
                     "msg": "任务启动成功，已发送到区域节点",
-                    "data": {
-                        "task_id": task.id,
-                        "task_name": task.name,
-                        "status": task.status,
-                        "region_node": task.region_node.name,
-                        "exchange_name": exchange_name,
-                    },
+                    "data": task_data,  # 返回完整的发送数据
                 })
                 
             except Exception as mq_error:
