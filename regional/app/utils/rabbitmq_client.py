@@ -62,22 +62,9 @@ class RabbitMQClient:
         
         try:
             # 检查 Exchange 是否存在，如果不存在则自动创建
-            try:
-                self.channel.exchange_declare(
+            self.channel.exchange_declare(
                     exchange=exchange,
-                    passive=True  # 只检查是否存在
-                )
-                logger.info(f"Exchange {exchange} 已存在，开始消费")
-            except pika.exceptions.AMQPChannelError:
-                # Exchange 不存在，自动创建
-                logger.info(f"Exchange {exchange} 不存在，正在自动创建...")
-                self.channel.exchange_declare(
-                    exchange=exchange,
-                    exchange_type='fanout',  # 与中央服务器保持一致
-                    durable=True
-                )
-                logger.info(f"✅ Exchange {exchange} 创建成功")
-            
+            )
             # 声明队列
             result = self.channel.queue_declare(
                 queue=queue,
@@ -98,7 +85,6 @@ class RabbitMQClient:
                 auto_ack=False
             )
             
-            logger.info(f"开始消费消息: {exchange} -> {queue_name}")
             
             # 开始消费
             self.channel.start_consuming()
