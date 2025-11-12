@@ -16,7 +16,6 @@ Including another URLconf
 """
 
 from django.urls import include, path, re_path
-from backend.views import UploadFileView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
@@ -33,7 +32,6 @@ schema_view = get_schema_view(
 )
 urlpatterns = [
 
-    path("api/v1/common/upload/", UploadFileView.as_view(), name="upload_file"),
     path("api/v1/account/", include("user.urls")),
     re_path(
         r"^swagger(?P<format>\.json|\.yaml)$",

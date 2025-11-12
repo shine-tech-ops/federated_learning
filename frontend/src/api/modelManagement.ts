@@ -102,6 +102,23 @@ export const modelManagementApi = {
   },
 
   /**
+   * 上传模型文件
+   */
+  uploadModelFile: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return service({
+      developing: CONFIG.developing,
+      mock: CONFIG.mock,
+      method: method.post,
+      url: '/v1/learn_management/model_version/upload/',
+      data: formData,
+      resCheck: true  // 使用默认的响应检查，会自动解包 data
+      // 注意：不要手动设置 Content-Type，让浏览器自动设置（包含 boundary）
+    })
+  },
+
+  /**
    * 下载模型版本文件（blob）
    */
   downloadModelVersion: (id: number) => {
@@ -129,6 +146,7 @@ export const {
     fetchModelVersions,
     deployModel,
     deleteModelVersion,
+    uploadModelFile,
     downloadModelVersion
 } = modelManagementApi
 

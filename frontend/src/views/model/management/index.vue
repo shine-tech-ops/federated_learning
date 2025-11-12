@@ -101,14 +101,12 @@
       <el-form-item label="模型文件">
         <el-upload
           :action="'#'"
-          :on-success="handleUploadSuccess"
           :http-request="customUpload"
           :before-upload="beforeUpload"
           :limit="1"
           :on-exceed="handleExceed"
           :file-list="fileList"
-          accept=".pt,.zip"
-          :data="{ upload_to_path: 'models' }"
+          accept=".pt,.zip,.pth,.pkl"
         >
           <el-button type="primary">点击上传</el-button>
         </el-upload>
@@ -139,7 +137,6 @@ import {
   modelInfoApi
 } from '@/api/modelManagement'
 import { ElMessage } from 'element-plus'
-import { uploadFile } from '@/api/system'
 import { nextTick } from 'vue'
 // 模型数据
 const modelInfos = ref([])
@@ -164,19 +161,20 @@ onMounted(async () => {
   }
 })
 
-// 上传文件
+// 上传文件（使用新的模型专用上传接口）
 const customUpload = async (options) => {
   const { file } = options
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('upload_to_path', 'models')
 
   try {
-    const res = await uploadFile(formData) // 使用封装好的 API 请求
-    handleUploadSuccess(res, { raw: file }) // 手动触发 on-success
+    const res = await modelManagementApi.uploadModelFile(file) // 使用模型专用上传接口
+    // 手动处理成功回调（不使用 el-upload 的 on-success，避免重复触发）
+    handleUploadSuccess(res, { raw: file })
+    // 返回成功，让 el-upload 组件知道上传完成
+    return res
   } catch (error) {
-    return
-    // 可以在这里做错误处理或提示
+    ElMessage.error('文件上传失败')
+    // 抛出错误，让 el-upload 组件知道上传失败
+    throw error
   }
 }
 
@@ -314,7 +312,30 @@ const beforeUpload = (file) => {
 
 // 上传成功回调
 const handleUploadSuccess = (response, file) => {
-  newVersionForm.value.file = response.file_path
+  console.log('Upload response:', response) // 调试信息
+  
+  // 响应拦截器会自动解包，最终返回的是 data 对象
+  // 后端返回: { code: 200, msg: "上传成功", data: { file_path: "models/..." } }
+  // 拦截器处理后: { file_path: "models/..." }
+  let filePath = null
+  
+  if (response) {
+    // 如果响应拦截器已经解包，response 就是 data 对象
+    if (response.file_path) {
+      filePath = response.file_path
+    } 
+  
+ 
+  }
+  console.log('filePath:', filePath)
+  
+  if (filePath) {
+    newVersionForm.value.file = filePath
+    ElMessage.success('文件上传成功')
+  } else {
+    ElMessage.error('获取文件路径失败，请查看控制台')
+    console.error('无法从响应中提取 file_path，完整响应:', JSON.stringify(response, null, 2))
+  }
 }
 
 // 文件超出限制提示

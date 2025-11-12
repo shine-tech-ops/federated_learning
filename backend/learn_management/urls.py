@@ -12,7 +12,7 @@ from .federated_task_views import (
     FederatedTaskResumeView
 )
 from .system_config_views import SystemConfigView, SystemConfigActivateView, AggregationMethodView
-from .model_views import ModelVersionView, ModelRollbackView, ModelInfoView, ModelVersionDeployView, ModelVersionDownloadView
+from .model_views import ModelVersionView, ModelRollbackView, ModelInfoView, ModelVersionDeployView, ModelVersionDownloadView, ModelFileUploadView
 from .model_inference_views import ModelInferenceLogView
 from .region_node_view import RegionNodeView
 from .edge_node_view import EdgeNodeView
@@ -276,6 +276,11 @@ urlpatterns = [
         name='model_version_deploy'
     ),
 
+    path(
+        'model_version/upload/',
+        ModelFileUploadView.as_view(),
+        name='model_file_upload'
+    ),
     path(
         'model_version/<int:id>/download/',
         tagged_view(
