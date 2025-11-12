@@ -15,7 +15,7 @@ from .system_config_views import SystemConfigView, SystemConfigActivateView, Agg
 from .model_views import ModelVersionView, ModelRollbackView, ModelInfoView, ModelVersionDeployView, ModelVersionDownloadView, ModelFileUploadView
 from .model_inference_views import ModelInferenceLogView
 from .region_node_view import RegionNodeView
-from .edge_node_view import EdgeNodeView
+from .edge_node_view import EdgeNodeView, EdgeNodeHeartbeatView
 from .system_log_view import SystemLogView
 from .region_api_view import RegionTaskView, DeviceTaskView, DeviceRegisterView, RegionNodeListView
 
@@ -415,6 +415,22 @@ urlpatterns = [
             }
         ),
         name='device-register'
+    ),
+
+    path(
+        'device/heartbeat/',
+        tagged_view(
+            EdgeNodeHeartbeatView,
+            "边缘设备使用API",
+            methods=['post'],
+            operation_summaries={
+                'post': '设备心跳上报'
+            },
+            operation_descriptions={
+                'post': '边缘设备定期上报心跳，更新设备在线状态和最后心跳时间'
+            }
+        ),
+        name='device-heartbeat'
     ),
 
     # ======================

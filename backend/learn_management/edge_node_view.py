@@ -8,6 +8,7 @@ from .models import EdgeNode
 from .serializers import EdgeNodeSerializer
 from backend.pagination import CustomPagination
 from rest_framework.generics import GenericAPIView
+from utils.common import PassAuthenticatedPermission
 
 
 class EdgeNodeView(GenericAPIView):
@@ -115,7 +116,61 @@ class EdgeNodeHeartbeatView(GenericAPIView):
     queryset = EdgeNode.objects.all()
     serializer_class = EdgeNodeSerializer
     pagination_class = CustomPagination
-
+    permission_classes = [PassAuthenticatedPermission]
 
     def post(self, request, *args, **kwargs):
-        pass
+        """接收边缘设备心跳"""
+        try:
+            data = request.data
+            device_id = data.get("device_id")
+            region_id = data.get("region_id") or data.get("region_node")
+            device_context = data.get("device_context", {})
+            
+            if not device_id:
+                ret_data = {
+                    "code": status.HTTP_400_BAD_REQUEST,
+                    "msg": "设备心跳失败：缺少device_id",
+                    "data": None,
+                }
+                return Response(ret_data)
+            
+            if not region_id:
+                ret_data = {
+                    "code": status.HTTP_400_BAD_REQUEST,
+                    "msg": "设备心跳失败：缺少region_id",
+                    "data": None,
+                }
+                return Response(ret_data)
+            
+            # 更新或创建设备心跳记录
+            from django.utils import timezone
+            node, created = EdgeNode.objects.update_or_create(
+                device_id=device_id,
+                region_node_id=region_id,
+                defaults={
+                    "last_heartbeat": timezone.now(),
+                    "status": "online",
+                    "device_context": device_context
+                }
+            )
+            
+            ret_data = {
+                "code": status.HTTP_200_OK,
+                "msg": "设备心跳成功" if not created else "设备心跳成功（新设备已注册）",
+                "data": {
+                    "device_id": device_id,
+                    "region_id": region_id,
+                    "last_heartbeat": node.last_heartbeat.isoformat() if node.last_heartbeat else None,
+                    "status": node.status
+                },
+            }
+            return Response(ret_data)
+            
+        except Exception as e:
+            traceback.print_exc()
+            ret_data = {
+                "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "msg": f"设备心跳失败：{str(e)}",
+                "data": None,
+            }
+            return Response(ret_data)

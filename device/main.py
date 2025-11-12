@@ -17,18 +17,24 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'shared'))
 from mqtt_handler import MQTTHandler
 from flower_client import FlowerClient
 from mnist_trainer import MNISTTrainer
+from http_client import HTTPClient
 
 
 class EdgeDevice:
     """边缘设备主类"""
     
-    def __init__(self, device_id: str, mqtt_config: dict):
+    def __init__(self, device_id: str, mqtt_config: dict, http_config: dict = None):
         self.device_id = device_id
         self.mqtt_handler = MQTTHandler(device_id, mqtt_config)
         self.flower_client = None
         self.trainer = None
         self.current_task = None
         self.running = False
+        self.region_id = None  # 区域节点ID，从注册信息或配置中获取
+        
+        # HTTP客户端配置（用于发送心跳到中央服务器）
+        http_base_url = http_config.get('base_url', 'http://localhost:8000') if http_config else 'http://localhost:8000'
+        self.http_client = HTTPClient(base_url=http_base_url)
         
         # 设置 MQTT 消息回调
         self.mqtt_handler.set_message_callback(self._handle_mqtt_message)
@@ -161,7 +167,7 @@ class EdgeDevice:
                 time.sleep(5)
     
     def _send_heartbeat(self):
-        """发送心跳"""
+        """发送心跳（同时发送MQTT心跳和HTTP心跳到中央服务器）"""
         try:
             heartbeat_data = {
                 "device_id": self.device_id,
@@ -170,7 +176,23 @@ class EdgeDevice:
                 "current_task": self.current_task['task_id'] if self.current_task else None
             }
             
+            # 发送MQTT心跳（给区域节点）
             self.mqtt_handler.publish_status(heartbeat_data)
+            
+            # 发送HTTP心跳到中央服务器
+            if self.region_id:
+                device_context = {
+                    "status": "online",
+                    "timestamp": time.time(),
+                    "current_task": self.current_task['task_id'] if self.current_task else None
+                }
+                self.http_client.send_heartbeat(
+                    device_id=self.device_id,
+                    region_id=self.region_id,
+                    device_context=device_context
+                )
+            else:
+                logger.warning(f"设备 {self.device_id} 未设置region_id，跳过HTTP心跳")
             
         except Exception as e:
             logger.error(f"发送心跳失败: {e}")
@@ -186,6 +208,9 @@ class EdgeDevice:
         if self.mqtt_handler:
             self.mqtt_handler.close()
         
+        if self.http_client:
+            self.http_client.close()
+        
         logger.info("边缘设备已停止")
 
 
@@ -199,8 +224,10 @@ if __name__ == "__main__":
         encoding="utf-8",
     )
     
-    # 获取设备ID
+    # 获取设备ID和参数
     device_id = sys.argv[1] if len(sys.argv) > 1 else "device_001"
+    region_id = int(sys.argv[2]) if len(sys.argv) > 2 else 1  # 默认region_id为1
+    central_server_url = sys.argv[3] if len(sys.argv) > 3 else 'http://localhost:8000'
     
     # MQTT 配置
     mqtt_config = {
@@ -211,6 +238,12 @@ if __name__ == "__main__":
         'keepalive': 60
     }
     
+    # HTTP 配置（用于发送心跳到中央服务器）
+    http_config = {
+        'base_url': central_server_url
+    }
+    
     # 启动设备
-    device = EdgeDevice(device_id, mqtt_config)
+    device = EdgeDevice(device_id, mqtt_config, http_config)
+    device.region_id = region_id  # 设置区域节点ID
     device.start()
