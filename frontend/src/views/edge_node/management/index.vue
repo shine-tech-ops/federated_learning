@@ -45,7 +45,7 @@
         <el-input v-model="form.device_id" placeholder="请输入设备ID（唯一标识）" />
       </el-form-item>
       <el-form-item label="IP地址" prop="ip_address">
-        <el-input v-model="form.ip_address" placeholder="请输入IP地址（可选）" />
+        <el-input v-model="form.ip_address" placeholder="请输入IP地址" />
       </el-form-item>
       <el-form-item label="所属区域" prop="region_node">
         <el-select v-model="form.region_node" placeholder="请选择区域" style="width: 100%">

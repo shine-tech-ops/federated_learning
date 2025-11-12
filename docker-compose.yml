@@ -44,6 +44,10 @@ services:
       - MINIO_SECRET_KEY=admin123456
       - MINIO_USE_SSL=false
       - MINIO_BUCKET_NAME=models
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=rabbitmq
+      - RABBITMQ_PASSWORD=rabbitmq
     depends_on:
       - db
       - redis
