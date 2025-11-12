@@ -42,8 +42,11 @@ class RegionalNode:
         self.mqtt_client = MQTTClient(self.config)          # 与边缘设备通讯
         self.http_client = HTTPClient(self.config.central_server)  # 向中央服务器上报状态
         
-        # Flower 服务器管理器
-        self.flower_server = FlowerServerManager(self.region_id)
+        # Flower 服务器管理器（带完成回调）
+        self.flower_server = FlowerServerManager(
+            self.region_id,
+            completion_callback=self._handle_training_completion
+        )
         
         # 运行状态
         self.running = False
@@ -486,6 +489,63 @@ class RegionalNode:
             self.flower_server.stop_server()
         
         logger.info("Fed Evo Regional Node Service Stopped")
+    
+    def _handle_training_completion(self, task_id: str, model_path: str, task_data: Dict[str, Any]):
+        """处理联邦学习完成后的模型上传"""
+        try:
+            logger.info("=" * 60)
+            logger.info("联邦学习完成 - 开始上传模型")
+            logger.info(f"任务ID: {task_id}")
+            logger.info(f"模型路径: {model_path}")
+            logger.info("=" * 60)
+            
+            # 上传模型到中央服务器
+            upload_result = self.http_client.upload_model_file(model_path, task_id=str(task_id))
+            
+            if upload_result:
+                file_path = upload_result.get('file_path')
+                logger.info(f"✅ 模型上传成功: {file_path}")
+                
+                # 上报任务完成状态到中央服务器
+                self._report_task_status_to_central_server(
+                    task_id,
+                    'completed',
+                    {
+                        'region_id': self.region_id,
+                        'model_file_path': file_path,
+                        'message': '联邦学习完成，模型已上传'
+                    }
+                )
+                
+                # 更新任务管理器状态
+                self.task_manager.complete_task(str(task_id))
+                
+            else:
+                logger.error("❌ 模型上传失败")
+                # 上报错误状态
+                self._report_task_status_to_central_server(
+                    task_id,
+                    'error',
+                    {
+                        'region_id': self.region_id,
+                        'error': '模型上传失败',
+                        'model_path': model_path
+                    }
+                )
+            
+            logger.info("=" * 60)
+            
+        except Exception as e:
+            logger.error(f"处理训练完成回调时发生错误: {e}")
+            # 上报错误状态
+            self._report_task_status_to_central_server(
+                task_id,
+                'error',
+                {
+                    'region_id': self.region_id,
+                    'error': f'处理训练完成时发生错误: {str(e)}'
+                }
+            )
 
 
 if __name__ == "__main__":

@@ -14,7 +14,8 @@ class HTTPClient:
     
     def __init__(self, config=None):
         if config:
-            self.base_url = config.get('central_server_url', 'http://localhost:8000')
+            # 支持两种配置格式：central_server_url 或 url
+            self.base_url = config.get('central_server_url') or config.get('url', 'http://localhost:8000')
             self.timeout = config.get('timeout', 30)
             self.retry_attempts = config.get('retry_attempts', 3)
             self.retry_delay = config.get('retry_delay', 5)
@@ -131,6 +132,67 @@ class HTTPClient:
         #     logger.warning("中央服务器连接异常")
         #     return False
         return True
+    
+    def upload_model_file(self, file_path: str, task_id: str = None) -> Optional[Dict[str, Any]]:
+        """上传模型文件到中央服务器"""
+        try:
+            import os
+            
+            if not os.path.exists(file_path):
+                logger.error(f"模型文件不存在: {file_path}")
+                return None
+            
+            url = f"{self.base_url.rstrip('/')}/api/model_version/upload/"
+            
+            # 添加任务ID作为元数据（如果需要）
+            data = {}
+            if task_id:
+                data['task_id'] = task_id
+            
+            for attempt in range(self.retry_attempts):
+                try:
+                    logger.info(f"上传模型文件到 {url} (尝试 {attempt + 1}/{self.retry_attempts})")
+                    
+                    # 每次尝试都重新打开文件
+                    with open(file_path, 'rb') as f:
+                        files = {
+                            'file': (os.path.basename(file_path), f, 'application/octet-stream')
+                        }
+                        
+                        response = self.session.post(
+                            url,
+                            files=files,
+                            data=data,
+                            timeout=self.timeout * 2  # 上传文件需要更长的超时时间
+                        )
+                    
+                    response.raise_for_status()
+                    
+                    result = response.json()
+                    
+                    if result.get('code') == 200:
+                        logger.info(f"模型文件上传成功: {file_path}")
+                        return result.get('data', {})
+                    else:
+                        logger.error(f"模型文件上传失败: {result.get('msg', 'Unknown error')}")
+                        if attempt < self.retry_attempts - 1:
+                            time.sleep(self.retry_delay)
+                        else:
+                            return None
+                            
+                except requests.exceptions.RequestException as e:
+                    logger.warning(f"模型文件上传失败 (尝试 {attempt + 1}/{self.retry_attempts}): {e}")
+                    if attempt < self.retry_attempts - 1:
+                        time.sleep(self.retry_delay)
+                    else:
+                        logger.error(f"模型文件上传最终失败: {e}")
+                        return None
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"上传模型文件异常: {e}")
+            return None
     
     def close(self):
         """关闭 HTTP 客户端"""

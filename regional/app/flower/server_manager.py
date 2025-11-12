@@ -6,6 +6,7 @@ import threading
 import time
 import sys
 import os
+import glob
 from loguru import logger
 from typing import Dict, Any, Optional
 import flwr as fl
@@ -22,13 +23,15 @@ from mnist_model import create_model, get_model_parameters, set_model_parameters
 class FlowerServerManager:
     """Flower Server Manager"""
     
-    def __init__(self, region_id: str):
+    def __init__(self, region_id: str, completion_callback=None):
         self.region_id = region_id
         self.server_thread: Optional[threading.Thread] = None
         self.server_running = False
         self.current_task = None
         self.model = None
         self.server_config = None
+        self.completion_callback = completion_callback  # 完成回调函数
+        self.final_model_path = None  # 最终模型路径
     
     def start_server(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """Start Flower server"""
@@ -71,15 +74,28 @@ class FlowerServerManager:
             raise
     
     def _run_server(self):
-        """Run Flower server"""
+        """Run Flower server - 基于任务参数配置联邦学习"""
         try:
-            # Create strategy
+            # 从任务参数获取配置
+            participation_rate = self.current_task.get('participation_rate', 100) if self.current_task else 100
+            fraction_fit = participation_rate / 100.0  # 转换为 0-1 之间的比例
+            
+            # 获取最小客户端数量（基于参与设备数量）
+            edge_devices = self.current_task.get('edge_devices', []) if self.current_task else []
+            min_clients = max(1, len(edge_devices))  # 至少需要1个客户端
+            
+            flower_logger.info(f"配置联邦学习策略:")
+            flower_logger.info(f"  - 参与率: {participation_rate}% (fraction_fit: {fraction_fit})")
+            flower_logger.info(f"  - 最小客户端数: {min_clients}")
+            flower_logger.info(f"  - 聚合方法: {self.current_task.get('aggregation_method', 'fedavg') if self.current_task else 'fedavg'}")
+            
+            # Create strategy - 目前使用 FedAvg，后续可以根据 aggregation_method 选择不同策略
             strategy = fl.server.strategy.FedAvg(
-                fraction_fit=1.0,  # 100% clients participate in training
-                fraction_evaluate=1.0,  # 100% clients participate in evaluation
-                min_fit_clients=1,  # Minimum 1 client
-                min_evaluate_clients=1,  # Minimum 1 client
-                min_available_clients=1,  # Minimum 1 available client
+                fraction_fit=fraction_fit,  # 基于参与率配置
+                fraction_evaluate=fraction_fit,  # 评估也使用相同的参与率
+                min_fit_clients=min_clients,  # 最小参与训练的客户端数
+                min_evaluate_clients=min_clients,  # 最小参与评估的客户端数
+                min_available_clients=min_clients,  # 最小可用客户端数
                 evaluate_fn=self._evaluate_fn,
                 on_fit_config_fn=self._fit_config_fn,
                 on_evaluate_config_fn=self._evaluate_config_fn,
@@ -90,13 +106,21 @@ class FlowerServerManager:
             # Start server
             self.server_running = True
 
+            # 获取训练轮次
+            num_rounds = self.current_task.get('rounds', 10) if self.current_task else 10
+            
+            flower_logger.info(f"Starting federated learning with {num_rounds} rounds")
+            
             fl.server.start_server(
                 server_address=f"{self.server_config['host']}:{self.server_config['port']}",
-                config=fl.server.ServerConfig(num_rounds=self.current_task['rounds']),
+                config=fl.server.ServerConfig(num_rounds=num_rounds),
                 strategy=strategy
             )
             
             flower_logger.info(f"Federated learning completed for task: {self.current_task['task_id']}")
+            
+            # 联邦学习完成，查找最终模型文件
+            self._handle_training_completion()
             
         except Exception as e:
             flower_logger.error(f"Failed to run federated learning server: {e}")
@@ -125,12 +149,13 @@ class FlowerServerManager:
             return 0.0, {}
     
     def _fit_config_fn(self, server_round: int):
-        """Training configuration function"""
-        return {
+        """Training configuration function - 基于任务参数配置"""
+        config = {
             "server_round": server_round,
-            "local_epochs": 3,
-            "learning_rate": 0.01
+            "local_epochs": self.current_task.get('local_epochs', 3) if self.current_task else 3,
+            "learning_rate": self.current_task.get('learning_rate', 0.01) if self.current_task else 0.01
         }
+        return config
     
     def _evaluate_config_fn(self, server_round: int):
         """Evaluation configuration function"""
@@ -192,6 +217,7 @@ class FlowerServerManager:
             if self.current_task and server_round == self.current_task.get('rounds', 0):
                 should_save = True
                 filename = f"{params_dir}/final_model_round_{server_round:03d}.npz"
+                self.final_model_path = filename  # 保存最终模型路径
                 flower_logger.info(f"Saving final model at round {server_round}")
             
             # Save parameters if needed
@@ -269,3 +295,37 @@ class FlowerServerManager:
         except Exception as e:
             flower_logger.error(f"Failed to save current parameters: {e}")
             return {"error": str(e)}
+    
+    def _handle_training_completion(self):
+        """处理训练完成后的操作"""
+        try:
+            # 如果没有找到最终模型路径，尝试查找最新的模型文件
+            if not self.final_model_path:
+                params_dir = "parameters"
+                if os.path.exists(params_dir):
+                    # 查找最新的 final_model 文件
+                    final_models = glob.glob(f"{params_dir}/final_model_*.npz")
+                    if final_models:
+                        # 按修改时间排序，取最新的
+                        final_models.sort(key=os.path.getmtime, reverse=True)
+                        self.final_model_path = final_models[0]
+                        flower_logger.info(f"Found final model: {self.final_model_path}")
+            
+            # 如果找到了最终模型，调用完成回调
+            if self.final_model_path and os.path.exists(self.final_model_path):
+                flower_logger.info(f"Training completed. Final model: {self.final_model_path}")
+                
+                if self.completion_callback:
+                    try:
+                        self.completion_callback(
+                            task_id=self.current_task.get('task_id') if self.current_task else None,
+                            model_path=self.final_model_path,
+                            task_data=self.current_task
+                        )
+                    except Exception as e:
+                        flower_logger.error(f"Error in completion callback: {e}")
+            else:
+                flower_logger.warning("Final model file not found after training completion")
+                
+        except Exception as e:
+            flower_logger.error(f"Error handling training completion: {e}")
