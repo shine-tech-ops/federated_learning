@@ -20,7 +20,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'share
 from mnist_model import create_model, get_model_parameters, set_model_parameters
 
 
-class FlowerServerManager:
+class FedServerManager:
     """Flower Server Manager"""
     
     def __init__(self, region_id: str, completion_callback=None):
@@ -61,6 +61,7 @@ class FlowerServerManager:
                 target=self._run_server,
                 daemon=True
             )
+
             self.server_thread.start()
             
             # Wait for server to start
@@ -88,6 +89,7 @@ class FlowerServerManager:
             flower_logger.info(f"  - 参与率: {participation_rate}% (fraction_fit: {fraction_fit})")
             flower_logger.info(f"  - 最小客户端数: {min_clients}")
             flower_logger.info(f"  - 聚合方法: {self.current_task.get('aggregation_method', 'fedavg') if self.current_task else 'fedavg'}")
+            flower_logger.info(f"  - 服务器地址: {self.server_config['host']}:{self.server_config['port']}")
             
             # Create strategy - 目前使用 FedAvg，后续可以根据 aggregation_method 选择不同策略
             strategy = fl.server.strategy.FedAvg(
@@ -183,8 +185,26 @@ class FlowerServerManager:
     
     def _get_server_info(self) -> Dict[str, Any]:
         """Get server information"""
+        # 获取实际可访问的 IP 地址（用于客户端连接）
+        # 如果 host 是 0.0.0.0，需要获取实际 IP
+        host = self.server_config['host']
+        if host == '0.0.0.0' or host == 'localhost':
+            # 获取本机实际 IP 地址（用于外部连接）
+            try:
+                import socket
+                # 创建一个 UDP socket 来获取本机 IP
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                # 不需要实际连接，只是用来获取本机 IP
+                s.connect(("8.8.8.8", 80))
+                actual_ip = s.getsockname()[0]
+                s.close()
+                host = actual_ip
+                flower_logger.info(f"Resolved 0.0.0.0 to actual IP: {host}")
+            except Exception as e:
+                flower_logger.warning(f"Failed to get actual IP address: {e}, using {host}")
+        
         return {
-            "host": self.server_config['host'],
+            "host": host,
             "port": self.server_config['port'],
             "server_id": self.server_config['server_id'],
             "running": self.server_running

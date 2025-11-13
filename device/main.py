@@ -92,6 +92,7 @@ class EdgeDevice:
             self.current_task = message
             
             # 获取 Flower 服务器信息
+            print("message", message)
             flower_server = message.get('flower_server', {})
             if not flower_server:
                 logger.error("缺少 Flower 服务器信息")
@@ -103,12 +104,31 @@ class EdgeDevice:
                 task_data=message
             )
             
+            # 获取 Flower 服务器地址
+            server_host = flower_server.get('host', 'localhost')
+            server_port = flower_server.get('port', 8080)
+            
+            # 如果 host 是 0.0.0.0 或 localhost，尝试从 MQTT broker 获取区域节点 IP
+            if server_host in ['0.0.0.0', 'localhost', '127.0.0.1']:
+                # 从 MQTT 连接信息中获取 broker 的 IP（区域节点和 MQTT broker 通常在同一台机器）
+                try:
+                    mqtt_host = self.mqtt_handler.client._host
+                    if mqtt_host and mqtt_host not in ['localhost', '127.0.0.1']:
+                        server_host = mqtt_host
+                        logger.info(f"使用 MQTT broker IP 作为 Flower 服务器地址: {server_host}")
+                    else:
+                        logger.warning(f"无法从 MQTT broker 获取 IP，使用默认地址: {server_host}")
+                except Exception as e:
+                    logger.warning(f"获取 MQTT broker IP 失败: {e}，使用原始地址: {server_host}")
+            
+            server_address = f"{server_host}:{server_port}"
+            logger.info(f"fed 服务器地址: {server_address}")
+            
             # 创建 Flower 客户端
             self.flower_client = FlowerClient(
                 device_id=self.device_id,
                 trainer=self.trainer,
-                #server_address=f"{flower_server['host']}:{flower_server['port']}"
-                server_address=f"192.168.1.4:{flower_server['port']}"
+                server_address=server_address
             )
             
             # 在后台线程启动联邦学习

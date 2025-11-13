@@ -11,11 +11,12 @@ from backend.pagination import CustomPagination
 from django.conf import settings
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import os
 import mimetypes
+from loguru import logger
 
 
 class ModelInfoView(GenericAPIView):
@@ -228,17 +229,17 @@ class ModelVersionDeployView(GenericAPIView):
 
 class ModelFileUploadView(GenericAPIView):
     """模型文件上传视图"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser]
 
     @swagger_auto_schema(
         operation_summary='上传模型文件',
-        operation_description='上传模型文件到存储系统（MinIO 或本地文件系统），返回文件路径用于创建模型版本。支持的文件格式：.pt, .pth, .zip, .pkl',
+        operation_description='上传模型文件到存储系统（MinIO 或本地文件系统），返回文件路径用于创建模型版本。支持的文件格式：.pt, .pth, .zip, .pkl, .npz',
         manual_parameters=[
             openapi.Parameter(
                 'file',
                 openapi.IN_FORM,
-                description='模型文件（.pt, .pth, .zip, .pkl 格式）',
+                description='模型文件（.pt, .pth, .zip, .pkl, .npz 格式）',
                 type=openapi.TYPE_FILE,
                 required=True
             ),
@@ -257,8 +258,13 @@ class ModelFileUploadView(GenericAPIView):
                             properties={
                                 'file_path': openapi.Schema(
                                     type=openapi.TYPE_STRING, 
-                                    description='文件路径',
+                                    description='文件路径（相对路径）',
                                     example='models/1234567890_model.pt'
+                                ),
+                                'file_url': openapi.Schema(
+                                    type=openapi.TYPE_STRING, 
+                                    description='文件访问 URL（可直接下载的完整 URL）',
+                                    example='http://minio:9000/models/1234567890_model.pt?X-Amz-Algorithm=...'
                                 )
                             }
                         )
@@ -292,10 +298,10 @@ class ModelFileUploadView(GenericAPIView):
             
             # 验证文件类型
             file_ext = os.path.splitext(file.name)[1].lower()
-            if file_ext not in ['.pt', '.zip', '.pth', '.pkl']:
+            if file_ext not in ['.pt', '.zip', '.pth', '.pkl', '.npz']:
                 return Response({
                     "code": status.HTTP_400_BAD_REQUEST,
-                    "msg": "不支持的文件类型，仅支持 .pt, .pth, .zip, .pkl 格式",
+                    "msg": "不支持的文件类型，仅支持 .pt, .pth, .zip, .pkl, .npz 格式",
                     "data": None
                 })
             
@@ -305,6 +311,7 @@ class ModelFileUploadView(GenericAPIView):
             object_name = f"models/{new_filename}"
             
             # 根据配置选择存储方式
+            file_url = None
             if settings.USE_MINIO_STORAGE:
                 # 使用 MinIO 存储
                 from utils.minio_client import get_minio_client
@@ -325,6 +332,25 @@ class ModelFileUploadView(GenericAPIView):
                     content_type=content_type
                 )
                 rel_path = object_name
+                # 生成预签名 URL（有效期 7 天）
+                try:
+                    file_url = minio_client.get_file_url(object_name, expires=7 * 24 * 3600)
+                    logger.info(f"生成 MinIO URL 成功: {file_url}")
+                except Exception as e:
+                    logger.warning(f"生成 MinIO URL 失败: {e}")
+                    # 如果生成 URL 失败，尝试构建一个基本的访问 URL
+                    try:
+                        # 构建 MinIO 的基本访问 URL（需要配置）
+                        minio_endpoint = getattr(settings, 'MINIO_ENDPOINT', 'localhost')
+                        minio_port = getattr(settings, 'MINIO_PORT', 9000)
+                        minio_use_ssl = getattr(settings, 'MINIO_USE_SSL', False)
+                        protocol = 'https' if minio_use_ssl else 'http'
+                        bucket_name = getattr(settings, 'MINIO_BUCKET_NAME', 'models')
+                        # 注意：这不是预签名 URL，可能需要认证才能访问
+                        file_url = f"{protocol}://{minio_endpoint}:{minio_port}/{bucket_name}/{object_name}"
+                        logger.info(f"使用基本 MinIO URL: {file_url}")
+                    except Exception as e2:
+                        logger.error(f"构建基本 MinIO URL 也失败: {e2}")
             else:
                 # 使用本地文件系统存储
                 target_dir = os.path.join(settings.MEDIA_ROOT, "models")
@@ -335,12 +361,42 @@ class ModelFileUploadView(GenericAPIView):
                 with open(abs_path, 'wb') as dst:
                     for chunk in file.chunks():
                         dst.write(chunk)
+                
+                # 生成本地文件访问 URL
+                media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                if not media_url.endswith('/'):
+                    media_url += '/'
+                # 构建完整的 URL（如果配置了完整域名）
+                base_url = getattr(settings, 'BASE_URL', '')
+                # 如果没有配置 BASE_URL，尝试从请求中获取
+                if not base_url:
+                    try:
+                        # 从请求中获取主机信息
+                        request_scheme = request.scheme if hasattr(request, 'scheme') else 'http'
+                        request_host = request.get_host() if hasattr(request, 'get_host') else 'localhost:8085'
+                        base_url = f"{request_scheme}://{request_host}"
+                    except Exception as e:
+                        logger.warning(f"无法从请求获取 base_url: {e}")
+                
+                if base_url:
+                    file_url = f"{base_url.rstrip('/')}{media_url.rstrip('/')}/{rel_path}"
+                else:
+                    # 如果没有配置 BASE_URL，返回相对路径
+                    file_url = f"{media_url.rstrip('/')}/{rel_path}"
+                
+                logger.info(f"生成本地文件 URL: {file_url}")
+            
+            # 确保 file_url 不为 None，如果还是 None，至少返回一个相对路径
+            if file_url is None:
+                logger.warning("file_url 为 None，使用 file_path 作为备用")
+                file_url = rel_path
 
             ret_data = {
                 "code": status.HTTP_200_OK,
                 "msg": "上传成功",
                 "data": {
                     "file_path": rel_path,
+                    "file_url": file_url,  # 添加可访问的 URL
                 },
             }
             return Response(ret_data)

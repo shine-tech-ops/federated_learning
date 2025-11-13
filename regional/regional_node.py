@@ -16,7 +16,7 @@ from app.utils.rabbitmq_client import RabbitMQClient
 from app.utils.mqtt_client import MQTTClient
 from app.utils.http_client import HTTPClient
 from app.service.task_manager import TaskManager
-from app.fed.server_manager import FlowerServerManager
+from app.fed.server_manager import FedServerManager
 
 
 class RegionalNode:
@@ -43,7 +43,7 @@ class RegionalNode:
         self.http_client = HTTPClient(self.config.central_server)  # 向中央服务器上报状态
         
         # Flower 服务器管理器（带完成回调）
-        self.flower_server = FlowerServerManager(
+        self.fed_server = FedServerManager(
             self.region_id,
             completion_callback=self._handle_training_completion
         )
@@ -165,6 +165,7 @@ class RegionalNode:
         """处理 RabbitMQ 消息 (来自中央服务器的指令)"""
         try:
             message = json.loads(body)
+            print("message", message)
             logger.info("\n" + "=" * 60)
             logger.info("Fed Evo - Received Central Server Instruction via RabbitMQ")
             logger.info("=" * 60)
@@ -203,7 +204,7 @@ class RegionalNode:
         rounds = task_data.get('rounds', 0)
         devices = task_data.get('edge_devices', [])
         
-        logger.info(f"Starting Federated Learning Task Processing")
+        logger.info(f"Starting Fed Learning Task Processing")
         logger.info(f"   Task ID: {task_id}")
         logger.info(f"   Task Name: {task_name}")
         logger.info(f"   Training Rounds: {rounds}")
@@ -334,7 +335,7 @@ class RegionalNode:
     def _notify_devices_task_start(self, task_data: Dict[str, Any]):
         """通知边缘设备任务开始"""
         # 1. 先启动 Flower 服务器
-        flower_server_info = self.flower_server.start_server(task_data)
+        flower_server_info = self.fed_server.start_server(task_data)
         
         # 2. 获取边缘设备列表
         edge_devices = task_data.get('edge_devices', [])
@@ -380,7 +381,7 @@ class RegionalNode:
     def _notify_devices_task_stop(self, task_data: Dict[str, Any]):
         """通知边缘设备任务停止"""
         # 先停止 Flower 服务器
-        self.flower_server.stop_server()
+        self.fed_server.stop_server()
         
         # 然后通知设备
         self._notify_devices_by_action(task_data, 'task_stop')
@@ -464,7 +465,7 @@ class RegionalNode:
             self.http_client.close()
         if hasattr(self, 'flower_server'):
             logger.info("Closing Flower Server...")
-            self.flower_server.stop_server()
+            self.fed_server.stop_server()
         
         logger.info("Fed Evo Regional Node Service Stopped")
     
@@ -482,7 +483,8 @@ class RegionalNode:
             
             if upload_result:
                 file_path = upload_result.get('file_path')
-                logger.info(f"✅ 模型上传成功: {file_path}")
+                logger.info(f"联邦学习完成，模型已上传: {file_path}{upload_result}")
+
                 
                 # 上报任务完成状态到中央服务器
                 self._report_task_status_to_central_server(

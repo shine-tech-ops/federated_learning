@@ -89,7 +89,7 @@ class Config:
         
         # 中央服务器配置
         self.central_server = {
-            'url': self._get_env('CENTRAL_SERVER_URL', 'http://localhost:8000'),
+            'url': self._get_env('CENTRAL_SERVER_URL', 'http://localhost:8085'),
             'timeout': int(self._get_env('CENTRAL_SERVER_TIMEOUT', '30')),
             'retry_attempts': int(self._get_env('CENTRAL_SERVER_RETRY_ATTEMPTS', '3')),
             'retry_delay': int(self._get_env('CENTRAL_SERVER_RETRY_DELAY', '5'))

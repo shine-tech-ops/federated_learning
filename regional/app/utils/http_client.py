@@ -15,13 +15,13 @@ class HTTPClient:
     def __init__(self, config=None):
         if config:
             # 支持两种配置格式：central_server_url 或 url
-            self.base_url = config.get('central_server_url') or config.get('url', 'http://localhost:8000')
+            self.base_url = config.get('central_server_url') or config.get('url', 'http://localhost:8085')
             self.timeout = config.get('timeout', 30)
             self.retry_attempts = config.get('retry_attempts', 3)
             self.retry_delay = config.get('retry_delay', 5)
         else:
             # 默认配置
-            self.base_url = 'http://localhost:8000'
+            self.base_url = 'http://localhost:8085'
             self.timeout = 30
             self.retry_attempts = 3
             self.retry_delay = 5
@@ -142,7 +142,7 @@ class HTTPClient:
                 logger.error(f"模型文件不存在: {file_path}")
                 return None
             
-            url = f"{self.base_url.rstrip('/')}/api/model_version/upload/"
+            url = f"{self.base_url.rstrip('/')}/api/v1/learn_management/model_version/upload/"
             
             # 添加任务ID作为元数据（如果需要）
             data = {}
@@ -159,10 +159,14 @@ class HTTPClient:
                             'file': (os.path.basename(file_path), f, 'application/octet-stream')
                         }
                         
-                        response = self.session.post(
+                        # 对于文件上传，使用 requests.post 而不是 session.post
+                        # 这样可以避免 session 的 Content-Type: application/json header 干扰
+                        # requests 在使用 files 参数时会自动设置正确的 multipart/form-data Content-Type（包含 boundary）
+                        response = requests.post(
                             url,
                             files=files,
                             data=data,
+                            headers={'User-Agent': 'RegionalNode/1.0'},  # 只保留必要的 header，Content-Type 由 requests 自动设置
                             timeout=self.timeout * 2  # 上传文件需要更长的超时时间
                         )
                     
@@ -171,7 +175,7 @@ class HTTPClient:
                     result = response.json()
                     
                     if result.get('code') == 200:
-                        logger.info(f"模型文件上传成功: {file_path}")
+                        logger.info(f"模型文件上传成功: {file_path}, result: {result}")
                         return result.get('data', {})
                     else:
                         logger.error(f"模型文件上传失败: {result.get('msg', 'Unknown error')}")
@@ -198,3 +202,16 @@ class HTTPClient:
         """关闭 HTTP 客户端"""
         self.session.close()
         logger.info("HTTP 客户端已关闭")
+
+
+if __name__ == "__main__":
+    #  python -m app.utils.http_client
+    config = {
+        'central_server_url': 'http://localhost:8085',
+        'timeout': 30,
+        'retry_attempts': 3,
+        'retry_delay': 5
+    }
+    http_client = HTTPClient(config)
+    path = '/Users/vincent/code/federated_learning/regional/parameters/final_model_round_002.npz'
+    http_client.upload_model_file(path)

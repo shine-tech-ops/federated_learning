@@ -70,9 +70,35 @@ def download_model(url, save_path='model.pth'):
     return save_path
 
 
-def load_model(model_path):
-    """加载模型"""
+def load_model_from_npz(npz_path):
+    """从 .npz 文件加载模型参数"""
     model = create_model()
+    
+    # 加载 .npz 文件
+    data = np.load(npz_path)
+    
+    # 提取参数数组（按顺序：arr_0, arr_1, arr_2, ...）
+    parameters = []
+    i = 0
+    while f'arr_{i}' in data:
+        parameters.append(data[f'arr_{i}'])
+        i += 1
+    
+    # 设置模型参数
+    set_model_parameters(model, parameters)
+    
+    return model
+
+
+def load_model(model_path):
+    """加载模型（支持 .pth 和 .npz 格式）"""
+    model = create_model()
+    
+    # 根据文件扩展名选择加载方式
+    if model_path.endswith('.npz'):
+        return load_model_from_npz(model_path)
+    
+    # 加载 .pth 格式
     checkpoint = torch.load(model_path, map_location='cpu')
     
     # 兼容不同的保存格式
@@ -109,13 +135,21 @@ if __name__ == "__main__":
     
     # 使用示例
     model_url = ""
+    # 可以使用 .npz 文件路径
+    npz_model_path = '/Users/vincent/code/federated_learning/regional/parameters/final_model_round_002.npz'
     image_path = '/Users/vincent/code/federated_learning/device/data/MNIST/images/train/train_00002_label_4.png'
     
     if model_url:
         model_path = download_model(model_url)
         model = load_model(model_path)
+    elif os.path.exists(npz_model_path):
+        # 使用 .npz 文件加载模型
+        print(f"正在从 .npz 文件加载模型: {npz_model_path}")
+        model = load_model(npz_model_path)
+        print("模型加载成功！")
     else:
+        print("使用未训练的模型（随机权重）")
         model = create_model()
     
     result = predict_image(model, image_path)
-    print(result)
+    print(f"预测结果: {result}")
