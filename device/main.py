@@ -33,7 +33,7 @@ class EdgeDevice:
         self.region_id = None  # 区域节点ID，从注册信息或配置中获取
         
         # HTTP客户端配置（用于发送心跳到中央服务器）
-        http_base_url = http_config.get('base_url', 'http://localhost:8000') if http_config else 'http://localhost:8000'
+        http_base_url = 'http://localhost:8085'
         self.http_client = HTTPClient(base_url=http_base_url)
         
         # 设置 MQTT 消息回调
@@ -188,7 +188,7 @@ class EdgeDevice:
                 }
                 self.http_client.send_heartbeat(
                     device_id=self.device_id,
-                    region_id=self.region_id,
+                    region_node=self.region_id,
                     device_context=device_context
                 )
             else:
@@ -225,8 +225,8 @@ if __name__ == "__main__":
     )
     
     # 获取设备ID和参数
-    device_id = sys.argv[1] if len(sys.argv) > 1 else "device_001"
-    region_id = int(sys.argv[2]) if len(sys.argv) > 2 else 1  # 默认region_id为1
+    device_id = '123'
+    region_id = '4'
     central_server_url = sys.argv[3] if len(sys.argv) > 3 else 'http://localhost:8000'
     
     # MQTT 配置

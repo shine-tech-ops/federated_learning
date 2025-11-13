@@ -10,13 +10,12 @@ from main import EdgeDevice
 def main():
     if len(sys.argv) < 2:
         print("用法: python start_device.py <device_id> [region_id] [central_server_url]")
-        print("示例: python start_device.py device_001 1 http://localhost:8000")
+        print("示例: python start_device.py device_001 1 http://localhost:8085")
         sys.exit(1)
     
     device_id = sys.argv[1]
     region_id = int(sys.argv[2]) if len(sys.argv) > 2 else 1  # 默认region_id为1
-    central_server_url = sys.argv[3] if len(sys.argv) > 3 else 'http://localhost:8000'
-    
+  
     # MQTT 配置
     mqtt_config = {
         'host': 'localhost',
@@ -28,7 +27,7 @@ def main():
     
     # HTTP 配置（用于发送心跳到中央服务器）
     http_config = {
-        'base_url': central_server_url
+        'base_url':'http://localhost:8085'
     }
     
     # 启动设备

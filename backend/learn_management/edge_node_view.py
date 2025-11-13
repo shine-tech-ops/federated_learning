@@ -4,6 +4,7 @@
 import traceback
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from .models import EdgeNode
 from .serializers import EdgeNodeSerializer
 from backend.pagination import CustomPagination
@@ -116,7 +117,7 @@ class EdgeNodeHeartbeatView(GenericAPIView):
     queryset = EdgeNode.objects.all()
     serializer_class = EdgeNodeSerializer
     pagination_class = CustomPagination
-    permission_classes = [PassAuthenticatedPermission]
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         """接收边缘设备心跳"""

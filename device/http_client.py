@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional
 class HTTPClient:
     """HTTP 客户端 - 向中央服务器发送心跳"""
     
-    def __init__(self, base_url: str = 'http://localhost:8000', timeout: int = 10):
+    def __init__(self, base_url: str = 'http://localhost:8085', timeout: int = 10):
         self.base_url = base_url.rstrip('/')
         self.timeout = timeout
         self.session = requests.Session()
@@ -20,16 +20,24 @@ class HTTPClient:
             'Content-Type': 'application/json',
             'User-Agent': 'EdgeDevice/1.0'
         })
-    
-    def send_heartbeat(self, device_id: str, region_id: int, device_context: Dict[str, Any] = None) -> bool:
+
+    def send_heartbeat(self, device_id: str, region_node: int, device_context: Dict[str, Any] = None, 
+                       ip_address: Optional[str] = None, status: str = "online", 
+                       description: Optional[str] = None) -> bool:
         """发送设备心跳到中央服务器"""
-        url = f"{self.base_url}/api/learn_management/device/heartbeat/"
-        
+        url = f"{self.base_url}/api/v1/learn_management/device/heartbeat/"
         data = {
             "device_id": device_id,
-            "region_id": region_id,
-            "device_context": device_context or {}
+            "region_node": region_node,
+            "device_context": device_context or {},
+            "status": status
         }
+        
+        # 添加可选字段
+        if ip_address:
+            data["ip_address"] = ip_address
+        if description:
+            data["description"] = description
         
         try:
             response = self.session.post(url, json=data, timeout=self.timeout)
