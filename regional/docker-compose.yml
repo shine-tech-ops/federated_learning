@@ -1,0 +1,50 @@
+services:
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: regional_mosquitto
+    ports:
+      - "1883:1883"
+      - "18083:18083"
+    volumes:
+      - ../mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ../mosquitto.passwd:/mosquitto/config/mosquitto.passwd
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: always
+    networks:
+      - regional
+
+  regional:
+    build:
+      context: ..
+      dockerfile: ./dockers/regional.Dockerfile
+    container_name: regional_node
+    volumes:
+      - .:/code
+    ports:
+      - "8087:8080"
+    environment:
+      - POSTGRES_HOST=${POSTGRES_HOST:-db}
+      - POSTGRES_NAME=${POSTGRES_NAME:-backend}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
+      - MQTT_USER=${MQTT_USER:-mqtt}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-mqtt2024#}
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - RABBITMQ_USER=${RABBITMQ_USER:-rabbitmq}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-rabbitmq}
+    depends_on:
+      - mqtt
+    restart: always
+    networks:
+      - regional
+    command: python run.py
+
+networks:
+  regional:
+    driver: bridge
+

@@ -2,9 +2,8 @@
 任务管理器 - 管理联邦学习任务的执行
 """
 
-import json
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any
 from loguru import logger
 
 
@@ -13,15 +12,11 @@ class TaskManager:
     
     def __init__(self):
         self.active_tasks: Dict[str, Dict[str, Any]] = {}
-        self.device_tasks: Dict[str, List[str]] = {}  # device_id -> task_ids
     
     def start_task(self, task_data: Dict[str, Any]):
         """开始任务"""
         task_id = task_data['task_id']
-        task_name = task_data.get('task_name', '未知任务')
         rounds = task_data.get('rounds', 10)
-        aggregation_method = task_data.get('aggregation_method', 'fedavg')
-     
         
         # 保存任务信息
         self.active_tasks[task_id] = {
@@ -33,8 +28,6 @@ class TaskManager:
             'total_rounds': rounds
         }
         
-        # 初始化设备任务映射
-        self.device_tasks[task_id] = []
         logger.info("task", task_data)
     
     def pause_task(self, task_id: str):
@@ -53,31 +46,6 @@ class TaskManager:
         else:
             logger.warning(f"任务 {task_id} 不存在")
     
-    def add_device_to_task(self, task_id: str, device_id: str):
-        """添加设备到任务"""
-        if task_id in self.active_tasks:
-            if device_id not in self.device_tasks[task_id]:
-                self.device_tasks[task_id].append(device_id)
-                self.active_tasks[task_id]['devices'].append(device_id)
-                logger.info(f"设备 {device_id} 已加入任务 {task_id}")
-        else:
-            logger.warning(f"任务 {task_id} 不存在")
-    
-    def remove_device_from_task(self, task_id: str, device_id: str):
-        """从任务中移除设备"""
-        if task_id in self.active_tasks and device_id in self.device_tasks[task_id]:
-            self.device_tasks[task_id].remove(device_id)
-            self.active_tasks[task_id]['devices'].remove(device_id)
-            logger.info(f"设备 {device_id} 已从任务 {task_id} 中移除")
-    
-    def get_task_status(self, task_id: str) -> Dict[str, Any]:
-        """获取任务状态"""
-        return self.active_tasks.get(task_id, {})
-    
-    def get_all_tasks(self) -> Dict[str, Dict[str, Any]]:
-        """获取所有任务"""
-        return self.active_tasks.copy()
-    
     def complete_task(self, task_id: str):
         """完成任务"""
         if task_id in self.active_tasks:
@@ -85,6 +53,22 @@ class TaskManager:
             self.active_tasks[task_id]['end_time'] = time.time()
             logger.info(f"任务 {task_id} 已完成")
     
-    def get_devices_for_task(self, task_id: str) -> List[str]:
-        """获取任务的设备列表"""
-        return self.device_tasks.get(task_id, [])
+    def update_device_status(self, device_id: str, status_data: Any):
+        """更新设备状态"""
+        logger.debug(f"设备 {device_id} 状态更新: {status_data}")
+        # 可以在这里实现设备状态更新逻辑
+    
+    def update_device_heartbeat(self, device_id: str, heartbeat_data: Any):
+        """更新设备心跳"""
+        logger.debug(f"设备 {device_id} 心跳更新: {heartbeat_data}")
+        # 可以在这里实现设备心跳更新逻辑
+    
+    def update_device_training_progress(self, device_id: str, training_data: Any):
+        """更新设备训练进度"""
+        logger.debug(f"设备 {device_id} 训练进度更新: {training_data}")
+        # 可以在这里实现设备训练进度更新逻辑
+    
+    def handle_device_result(self, device_id: str, result_data: Any):
+        """处理设备训练结果"""
+        logger.info(f"设备 {device_id} 训练结果: {result_data}")
+        # 可以在这里实现设备训练结果处理逻辑

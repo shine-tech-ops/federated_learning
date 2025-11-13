@@ -16,7 +16,7 @@ from app.utils.rabbitmq_client import RabbitMQClient
 from app.utils.mqtt_client import MQTTClient
 from app.utils.http_client import HTTPClient
 from app.service.task_manager import TaskManager
-from app.flower.server_manager import FlowerServerManager
+from app.fed.server_manager import FlowerServerManager
 
 
 class RegionalNode:
@@ -226,8 +226,6 @@ class RegionalNode:
                 'started', 
                 {'region_id': self.region_id}
             )
-            
-         
             
         except Exception as e:
             logger.error(f"Task Start Processing Error: {e}")
@@ -440,34 +438,13 @@ class RegionalNode:
             pass
     
     def _main_loop(self):
-        """主循环 - 监控任务和设备状态"""
-        
+        """主循环 - 保持服务运行"""
         while self.running:
             try:
-                # 检查任务状态 (通过 RabbitMQ 与中央服务器同步)
-                self._check_task_status()
-                
-                # 检查设备状态 (通过 MQTT 与边缘设备同步)
-                self._check_device_status()
-                
-                # 休眠
                 time.sleep(self.config.task['status_check_interval'])
-                
             except Exception as e:
-                logger.error(f"❌ 主循环错误: {e}")
+                logger.error(f"主循环错误: {e}")
                 time.sleep(5)
-    
-    def _check_task_status(self):
-        """检查任务状态 (与中央服务器同步)"""
-        # 实现任务状态检查逻辑
-        # 通过 RabbitMQ 与中央服务器同步任务状态
-        pass
-    
-    def _check_device_status(self):
-        """检查设备状态 (与边缘设备同步)"""
-        # 实现设备状态检查逻辑
-        # 通过 MQTT 与边缘设备同步设备状态
-        pass
     
     def stop(self):
         """停止服务"""

@@ -116,7 +116,7 @@ class Config:
     
     def get_mqtt_device_command_topic(self, device_id: str, action: str) -> str:
         """获取 MQTT 设备命令主题名称（用于向特定设备发送命令）"""
-        return f"federated_task_device_001/{action}"
+        return f"federated_task_{device_id}/{action}"
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典格式"""
