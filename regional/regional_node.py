@@ -109,6 +109,7 @@ class RegionalNode:
         exchange_name = self.config.get_rabbitmq_exchange()
         queue_name = self.config.get_rabbitmq_queue()
         
+        print("exchange_name", exchange_name, 'queue_name', queue_name)
         try:
             self.rabbitmq_client.consumer(
                 exchange=exchange_name,

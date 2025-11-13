@@ -24,19 +24,18 @@ services:
     ports:
       - "8087:8080"
     environment:
-      - POSTGRES_HOST=${POSTGRES_HOST:-db}
-      - POSTGRES_NAME=${POSTGRES_NAME:-backend}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
       - MQTT_BROKER_HOST=mosquitto
       - MQTT_BROKER_PORT=1883
       - MQTT_USER=${MQTT_USER:-mqtt}
       - MQTT_PASSWORD=${MQTT_PASSWORD:-mqtt2024#}
-      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
+      # RabbitMQ 配置 - 需要设置为 backend 机器的实际 IP 地址或主机名
+      # 例如: RABBITMQ_HOST=192.168.1.100 或 RABBITMQ_HOST=backend.example.com
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
       - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - RABBITMQ_USER=${RABBITMQ_USER:-rabbitmq}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-rabbitmq}
+      # 中央服务器配置
+      - CENTRAL_SERVER_URL=${CENTRAL_SERVER_URL:-http://localhost:8000}
     depends_on:
       - mqtt
     restart: always

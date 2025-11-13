@@ -26,12 +26,24 @@ class Config:
     
     def __init__(self):
         # 区域节点配置
-        self.region_id = self._get_env('REGION_ID', 'region-001')
-        self.node_name = self._get_env('NODE_NAME', f'Regional Node {self.region_id}')
+        self.region_id = self._get_env('REGION_ID', '3')
+        self.node_name = self._get_env('NODE_NAME', 'xx大学区域节点')
+            
+            # RabbitMQ 配置
+        # 注意：如果 regional 和 backend 在不同机器上，必须设置 RABBITMQ_HOST 为 backend 机器的 IP 或主机名
+        rabbitmq_host = self._get_env('RABBITMQ_HOST', '')
+        if not rabbitmq_host:
+            import warnings
+            warnings.warn(
+                "⚠️  RABBITMQ_HOST 未设置！如果 regional 和 backend 在不同机器上，"
+                "请设置环境变量 RABBITMQ_HOST 为 backend 机器的 IP 地址或主机名。"
+                "例如: export RABBITMQ_HOST=192.168.1.100",
+                UserWarning
+            )
+            rabbitmq_host = 'localhost'  # 临时使用 localhost，但会失败
         
-        # RabbitMQ 配置
         self.rabbitmq = {
-            'host': self._get_env('RABBITMQ_HOST', 'localhost'),
+            'host': rabbitmq_host,
             'port': int(self._get_env('RABBITMQ_PORT', '5672')),
             'username': self._get_env('RABBITMQ_USER', 'rabbitmq'),
             'password': self._get_env('RABBITMQ_PASSWORD', 'rabbitmq'),
@@ -144,8 +156,17 @@ config = Config()
 def validate_config() -> bool:
     """验证配置是否有效"""
     try:
-        # 配置验证通过，因为 __init__ 已经设置了默认值
-      
+        # 检查必要的配置项
+        if not config.rabbitmq['host'] or config.rabbitmq['host'] == 'localhost':
+            print("⚠️  警告: RABBITMQ_HOST 未设置或使用 localhost")
+            print("   如果 regional 和 backend 在不同机器上，请设置 RABBITMQ_HOST 环境变量")
+            print(f"   当前配置: RABBITMQ_HOST={config.rabbitmq['host']}")
+        
+        if not config.central_server['url'] or 'localhost' in config.central_server['url']:
+            print("⚠️  警告: CENTRAL_SERVER_URL 未设置或使用 localhost")
+            print("   如果 regional 和 backend 在不同机器上，请设置 CENTRAL_SERVER_URL 环境变量")
+            print(f"   当前配置: CENTRAL_SERVER_URL={config.central_server['url']}")
+        
         return True
         
     except Exception as e:

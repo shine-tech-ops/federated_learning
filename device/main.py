@@ -177,7 +177,6 @@ class EdgeDevice:
             }
             
             # 发送MQTT心跳（给区域节点）
-            self.mqtt_handler.publish_status(heartbeat_data)
             
             # 发送HTTP心跳到中央服务器
             if self.region_id:
