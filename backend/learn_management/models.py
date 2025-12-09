@@ -283,3 +283,66 @@ class OperationLog(models.Model):
         verbose_name = "操作日志"
         verbose_name_plural = "操作日志"
         ordering = ["-id"]
+
+
+class FederatedTrainingLog(models.Model):
+    """联邦学习训练日志表"""
+    
+    LOG_LEVEL_CHOICES = (
+        ('DEBUG', 'DEBUG'),
+        ('INFO', 'INFO'),
+        ('WARNING', 'WARNING'),
+        ('ERROR', 'ERROR'),
+    )
+    
+    LOG_PHASE_CHOICES = (
+        ('train', '训练阶段'),
+        ('upload', '上传阶段'),
+        ('aggregate', '聚合阶段'),
+        ('evaluate', '评估阶段'),
+        ('system', '系统事件'),
+    )
+    
+    # 基础信息
+    task = models.ForeignKey('FederatedTask', on_delete=models.CASCADE, related_name='training_logs', verbose_name="联邦任务")
+    region_node = models.ForeignKey('RegionNode', on_delete=models.CASCADE, null=True, blank=True, related_name='training_logs', verbose_name="区域节点")
+    device_id = models.CharField(max_length=100, null=True, blank=True, db_index=True, verbose_name="设备ID")
+    
+    # 训练信息
+    round = models.IntegerField(null=True, blank=True, db_index=True, verbose_name="训练轮次")
+    phase = models.CharField(max_length=20, choices=LOG_PHASE_CHOICES, default='system', db_index=True, verbose_name="日志阶段")
+    level = models.CharField(max_length=10, choices=LOG_LEVEL_CHOICES, default='INFO', db_index=True, verbose_name="日志级别")
+    
+    # 训练指标
+    loss = models.FloatField(null=True, blank=True, verbose_name="损失值")
+    accuracy = models.FloatField(null=True, blank=True, verbose_name="准确率")
+    num_examples = models.IntegerField(null=True, blank=True, verbose_name="样本数量")
+    
+    # 其他指标（JSON格式存储）
+    metrics = models.JSONField(default=dict, blank=True, null=True, verbose_name="其他指标")
+    
+    # 日志消息
+    message = models.TextField(blank=True, null=True, verbose_name="日志消息")
+    error_message = models.TextField(null=True, blank=True, verbose_name="错误信息")
+    
+    # 时间信息
+    log_timestamp = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="日志时间戳")
+    duration = models.FloatField(null=True, blank=True, verbose_name="耗时（秒）")
+    
+    # 扩展信息
+    extra_data = models.JSONField(default=dict, blank=True, null=True, verbose_name="扩展数据")
+    
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+    
+    class Meta:
+        db_table = "federated_training_log"
+        db_table_comment = "联邦学习训练日志表"
+        verbose_name = "训练日志"
+        verbose_name_plural = "训练日志"
+        ordering = ["-log_timestamp", "-id"]
+        indexes = [
+            models.Index(fields=['task', 'round', 'phase']),
+            models.Index(fields=['device_id', 'round']),
+            models.Index(fields=['level', 'log_timestamp']),
+        ]

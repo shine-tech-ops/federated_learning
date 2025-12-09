@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 from rest_framework import serializers
-from .models import FederatedTask, SystemConfig, ModelVersion, ModelInfo, RegionNode, EdgeNode, TrainingRecord, OperationLog, ModelInferenceLog
+from .models import FederatedTask, SystemConfig, ModelVersion, ModelInfo, RegionNode, EdgeNode, TrainingRecord, OperationLog, ModelInferenceLog, FederatedTrainingLog
 from user.serializers import CommonUserSerializer
 import utils.common_constant as const
 
@@ -109,3 +109,28 @@ class ModelInferenceLogSerializer(serializers.ModelSerializer):
         model = ModelInferenceLog
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at', 'created_by']
+
+
+class FederatedTrainingLogSerializer(serializers.ModelSerializer):
+    task_detail = serializers.SerializerMethodField()
+    region_node_detail = serializers.SerializerMethodField()
+    
+    def get_task_detail(self, obj):
+        if obj.task:
+            return {
+                'id': obj.task.id,
+                'name': obj.task.name,
+                'rounds': obj.task.rounds,
+                'status': obj.task.status,
+            }
+        return None
+    
+    def get_region_node_detail(self, obj):
+        if obj.region_node:
+            return RegionNodeSerializer(obj.region_node).data
+        return None
+    
+    class Meta:
+        model = FederatedTrainingLog
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']

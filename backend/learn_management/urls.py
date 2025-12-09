@@ -18,6 +18,7 @@ from .region_node_view import RegionNodeView
 from .edge_node_view import EdgeNodeView, EdgeNodeHeartbeatView
 from .system_log_view import SystemLogView
 from .region_api_view import RegionTaskView, DeviceTaskView, DeviceRegisterView, RegionNodeListView
+from .training_log_views import FederatedTrainingLogView, FederatedTrainingLogStatsView
 
 
 # 封装带 tag 的视图函数（支持多个 method）
@@ -456,5 +457,41 @@ urlpatterns = [
             }
         ),
         name='model-inference-log'
+    ),
+    
+    # ======================
+    # 训练日志相关 API - tag: "训练日志"
+    # ======================
+    path(
+        'training_log/',
+        tagged_view(
+            FederatedTrainingLogView,
+            "训练日志",
+            methods=['get', 'post'],
+            operation_summaries={
+                'get': '查询训练日志列表',
+                'post': '上传训练日志（支持批量）'
+            },
+            operation_descriptions={
+                'get': '查询联邦学习训练日志，支持按任务、设备、轮次等条件筛选',
+                'post': '上传训练日志到中央服务器，支持单条或批量上传'
+            }
+        ),
+        name='training-log'
+    ),
+    path(
+        'training_log/stats/',
+        tagged_view(
+            FederatedTrainingLogStatsView,
+            "训练日志",
+            methods=['get'],
+            operation_summaries={
+                'get': '获取训练日志统计信息'
+            },
+            operation_descriptions={
+                'get': '获取指定任务的训练日志统计信息，包括轮次统计、设备统计等'
+            }
+        ),
+        name='training-log-stats'
     ),
 ]
