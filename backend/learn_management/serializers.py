@@ -1,6 +1,10 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from rest_framework import serializers
 from .models import FederatedTask, SystemConfig, ModelVersion, ModelInfo, RegionNode, EdgeNode, TrainingRecord, OperationLog, ModelInferenceLog
 from user.serializers import CommonUserSerializer
+import utils.common_constant as const
 
 class SystemConfigSerializer(serializers.ModelSerializer):
     class Meta:
@@ -45,6 +49,15 @@ class EdgeNodeSerializer(serializers.ModelSerializer):
     def to_representation(self, obj):
         ret = super(EdgeNodeSerializer, self).to_representation(obj)
         ret['region_node_detail'] = RegionNodeSerializer(obj.region_node).data
+        # 动态判断心跳是否过期，过期则视为离线返回
+        last_heartbeat = obj.last_heartbeat
+        is_stale = (
+            (not last_heartbeat)
+            or (timezone.now() - last_heartbeat > timedelta(seconds=const.HEARTBEAT_STALE_SECONDS))
+        )
+        if is_stale:
+            ret['status'] = 'offline'
+        ret['stale_after_seconds'] = const.HEARTBEAT_STALE_SECONDS
         return ret
     class Meta:
         model = EdgeNode

@@ -37,4 +37,7 @@ REDIS_AUTH_TOKEN_PREFIX = "device_auth_token:{}"
 
 HEARTBEAT_TIMEOUT = 60 * 2
 
+# 在接口读取时判定失联的阈值（秒），超过则视为 offline 返回
+HEARTBEAT_STALE_SECONDS = 30
+
 
