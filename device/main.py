@@ -18,12 +18,23 @@ from mqtt_handler import MQTTHandler
 from flower_client import FlowerClient
 from mnist_trainer import MNISTTrainer
 from http_client import HTTPClient
+from config import config
 
+trainer_class = {
+    "cnn": MNISTTrainer,
+    # "proxy":
+}
 
 class EdgeDevice:
     """边缘设备主类"""
     
-    def __init__(self, device_id: str, mqtt_config: dict, http_config: dict = None):
+    def __init__(
+        self,
+        device_id: str,
+        mqtt_config: dict,
+        http_config: dict = None,
+        heartbeat_interval: int = 30,
+    ):
         self.device_id = device_id
         self.mqtt_handler = MQTTHandler(device_id, mqtt_config)
         self.flower_client = None
@@ -31,10 +42,12 @@ class EdgeDevice:
         self.current_task = None
         self.running = False
         self.region_id = None  # 区域节点ID，从注册信息或配置中获取
+        self.heartbeat_interval = heartbeat_interval
         
         # HTTP客户端配置（用于发送心跳到中央服务器）
-        http_base_url = 'http://localhost:8085'
-        self.http_client = HTTPClient(base_url=http_base_url)
+        http_base_url = http_config.get('base_url') if http_config else 'http://localhost:8085'
+        http_timeout = http_config.get('timeout', 10) if http_config else 10
+        self.http_client = HTTPClient(base_url=http_base_url, timeout=http_timeout)
         
         # 设置 MQTT 消息回调
         self.mqtt_handler.set_message_callback(self._handle_mqtt_message)
@@ -180,7 +193,7 @@ class EdgeDevice:
                 self._send_heartbeat()
                 
                 # 休眠
-                time.sleep(30)
+                time.sleep(self.heartbeat_interval)
                 
             except Exception as e:
                 logger.error(f"主循环错误: {e}")
@@ -234,35 +247,32 @@ class EdgeDevice:
 
 
 if __name__ == "__main__":
+    # 设备ID、区域ID、中央服务器地址可通过命令行覆盖配置文件
+    device_id = sys.argv[1] if len(sys.argv) > 1 else config.device_id
+    region_id = int(sys.argv[2]) if len(sys.argv) > 2 else int(config.region_id)
+    central_server_url = sys.argv[3] if len(sys.argv) > 3 else config.http['base_url']
+    
     # 配置日志
+    log_file = config.logging['file'].format(device_id=device_id)
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
     logger.add(
-        f"logs/device_{sys.argv[1] if len(sys.argv) > 1 else 'default'}.log",
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
-        rotation="10 MB",
-        level="INFO",
+        log_file,
+        format=config.logging['format'],
+        rotation=config.logging['max_size'],
+        level=config.logging['level'],
         encoding="utf-8",
     )
     
-    # 获取设备ID和参数
-    device_id = '123'
-    region_id = '4'
-    central_server_url = sys.argv[3] if len(sys.argv) > 3 else 'http://localhost:8000'
-    
     # MQTT 配置
-    mqtt_config = {
-        'host': 'localhost',
-        'port': 1883,
-        'username': 'mqtt',
-        'password': 'mqtt2024#',
-        'keepalive': 60
-    }
+    mqtt_config = config.mqtt
     
     # HTTP 配置（用于发送心跳到中央服务器）
     http_config = {
-        'base_url': central_server_url
+        **config.http,
+        'base_url': central_server_url,
     }
     
     # 启动设备
-    device = EdgeDevice(device_id, mqtt_config, http_config)
+    device = EdgeDevice(device_id, mqtt_config, http_config, heartbeat_interval=config.heartbeat_interval)
     device.region_id = region_id  # 设置区域节点ID
     device.start()
