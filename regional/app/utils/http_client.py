@@ -6,7 +6,7 @@ import requests
 import json
 import time
 from loguru import logger
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 
 
 class HTTPClient:
@@ -121,6 +121,25 @@ class HTTPClient:
         #     logger.error(f"设备状态上报失败: {device_id}")
         #     return False
         return True
+
+    def upload_training_logs(self, logs: Union[Dict[str, Any], list]) -> bool:
+        """
+        上传训练/聚合日志到中央服务器
+        
+        支持单条 dict 或 list（批量）格式，返回是否请求成功。
+        """
+        endpoint = "/api/v1/learn_management/training_log/"
+        result = self._make_request('POST', endpoint, logs)
+        if not result:
+            return False
+
+        code = result.get("code")
+        if code == 200:
+            logger.debug(f"训练日志上传成功: {result.get('msg')}")
+            return True
+
+        logger.warning(f"训练日志上传失败: {result.get('msg')}")
+        return False
     
     def health_check(self) -> bool:
         """健康检查 - 检查与中央服务器的连接"""

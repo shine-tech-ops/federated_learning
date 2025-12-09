@@ -6,7 +6,7 @@ import requests
 import json
 import time
 from loguru import logger
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 
 
 class HTTPClient:
@@ -55,6 +55,32 @@ class HTTPClient:
             logger.error(f"设备 {device_id} 心跳发送异常: {e}")
             return False
     
+    def upload_training_logs(self, logs: Union[Dict[str, Any], list]) -> bool:
+        """
+        上传训练日志到中央服务器
+        
+        支持单条或批量（list）上传，返回是否全部成功。
+        """
+        url = f"{self.base_url}/api/v1/learn_management/training_log/"
+        payload = logs
+
+        # 当传入单条 dict 时，保持与后端兼容的单条上传格式
+        try:
+            response = self.session.post(url, json=payload, timeout=self.timeout)
+            response.raise_for_status()
+
+            result = response.json()
+            if result.get('code') == 200:
+                logger.debug(f"训练日志上传成功: {result.get('msg')}")
+                return True
+
+            logger.warning(f"训练日志上传失败: {result.get('msg')}")
+            return False
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"训练日志上传异常: {e}")
+            return False
+
     def close(self):
         """关闭 HTTP 客户端"""
         self.session.close()

@@ -5,7 +5,7 @@ import time
 import os
 import flwr as fl
 from loguru import logger
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional, Callable, Union
 import numpy as np
 
 from mnist_trainer import MNISTTrainer
@@ -14,12 +14,23 @@ from mnist_trainer import MNISTTrainer
 class FlowerClient(fl.client.NumPyClient):
     """Flower 客户端"""
     
-    def __init__(self, device_id: str, trainer: MNISTTrainer, server_address: str):
+    def __init__(
+        self, 
+        device_id: str, 
+        trainer: MNISTTrainer, 
+        server_address: str,
+        task_id: Optional[str] = None,
+        region_id: Optional[Union[int, str]] = None,
+        log_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    ):
         self.device_id = device_id
         self.trainer = trainer
         self.server_address = server_address
         self.client = None
         self.running = False
+        self.task_id = task_id
+        self.region_id = region_id
+        self.log_callback = log_callback
     
     def get_parameters(self, config: Dict[str, Any]) -> List[np.ndarray]:
         """获取模型参数"""
@@ -29,29 +40,83 @@ class FlowerClient(fl.client.NumPyClient):
     def fit(self, parameters: List[np.ndarray], config: Dict[str, Any]) -> Tuple[List[np.ndarray], int, Dict[str, Any]]:
         """训练模型"""
         logger.info(f"设备 {self.device_id} 开始训练")
+        start_ts = time.time()
+        round_num = config.get("server_round")
         
-        # 执行训练
-        updated_parameters, num_examples, metrics = self.trainer.fit(parameters, config)
+        try:
+            # 执行训练
+            updated_parameters, num_examples, metrics = self.trainer.fit(parameters, config)
 
-        # 训练完成后保存模型
-        self._save_model_after_training(metrics)
-        
-        # 记录训练结果
-        logger.info(f"设备 {self.device_id} 训练完成: {metrics}")
-        
-        return updated_parameters, num_examples, metrics
+            duration = time.time() - start_ts
+
+            # 训练完成后保存模型
+            self._save_model_after_training(metrics)
+            
+            # 记录训练结果
+            logger.info(f"设备 {self.device_id} 训练完成: {metrics}")
+
+            # 上报训练日志
+            self._emit_log({
+                "phase": "train",
+                "level": "INFO",
+                "round": round_num,
+                "num_examples": num_examples,
+                "metrics": metrics,
+                "loss": metrics.get("loss"),
+                "accuracy": metrics.get("accuracy"),
+                "duration": duration,
+                "message": f"local training finished, round={round_num}, examples={num_examples}"
+            })
+            
+            return updated_parameters, num_examples, metrics
+        except Exception as e:
+            # 上报错误日志
+            self._emit_log({
+                "phase": "train",
+                "level": "ERROR",
+                "round": round_num,
+                "error_message": str(e),
+                "message": f"local training failed in round {round_num}"
+            })
+            raise
     
     def evaluate(self, parameters: List[np.ndarray], config: Dict[str, Any]) -> Tuple[float, int, Dict[str, Any]]:
         """评估模型"""
         logger.info(f"设备 {self.device_id} 开始评估")
+        start_ts = time.time()
+        round_num = config.get("server_round")
         
-        # 执行评估
-        loss, num_examples, metrics = self.trainer.evaluate(parameters, config)
-        
-        # 记录评估结果
-        logger.info(f"设备 {self.device_id} 评估完成: {metrics}")
-        
-        return loss, num_examples, metrics
+        try:
+            # 执行评估
+            loss, num_examples, metrics = self.trainer.evaluate(parameters, config)
+            duration = time.time() - start_ts
+            
+            # 记录评估结果
+            logger.info(f"设备 {self.device_id} 评估完成: {metrics}")
+
+            # 上报评估日志
+            self._emit_log({
+                "phase": "evaluate",
+                "level": "INFO",
+                "round": round_num,
+                "num_examples": num_examples,
+                "metrics": metrics,
+                "loss": loss,
+                "accuracy": metrics.get("accuracy"),
+                "duration": duration,
+                "message": f"local evaluation finished, round={round_num}, examples={num_examples}"
+            })
+            
+            return loss, num_examples, metrics
+        except Exception as e:
+            self._emit_log({
+                "phase": "evaluate",
+                "level": "ERROR",
+                "round": round_num,
+                "error_message": str(e),
+                "message": f"local evaluation failed in round {round_num}"
+            })
+            raise
 
     def _save_model_after_training(self, metrics: Dict[str, Any]):
         """训练后保存模型"""
@@ -113,3 +178,29 @@ class FlowerClient(fl.client.NumPyClient):
         self.running = False
         # 这里可以实现停止逻辑
         pass
+
+    def _emit_log(self, payload: Dict[str, Any]):
+        """将本地训练/评估日志发送到上游回调"""
+        if not self.log_callback:
+            return
+
+        log_data = {
+            "task": self.task_id,
+            "region_node": self.region_id,
+            "device_id": self.device_id,
+            "phase": payload.get("phase", "system"),
+            "level": payload.get("level", "INFO"),
+            "round": payload.get("round"),
+            "loss": payload.get("loss"),
+            "accuracy": payload.get("accuracy"),
+            "num_examples": payload.get("num_examples"),
+            "metrics": payload.get("metrics"),
+            "duration": payload.get("duration"),
+            "message": payload.get("message"),
+            "error_message": payload.get("error_message"),
+        }
+
+        try:
+            self.log_callback(log_data)
+        except Exception as e:
+            logger.warning(f"训练日志回调发送失败: {e}")

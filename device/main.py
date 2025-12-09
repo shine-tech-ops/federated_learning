@@ -141,7 +141,10 @@ class EdgeDevice:
             self.flower_client = FlowerClient(
                 device_id=self.device_id,
                 trainer=self.trainer,
-                server_address=server_address
+                server_address=server_address,
+                task_id=message.get('task_id'),
+                region_id=self.region_id,
+                log_callback=self._report_training_log
             )
             
             # 在后台线程启动联邦学习
@@ -228,6 +231,41 @@ class EdgeDevice:
             
         except Exception as e:
             logger.error(f"发送心跳失败: {e}")
+
+    def _report_training_log(self, log_data: dict):
+        """向中央服务器上传训练/评估日志"""
+        try:
+            task_id = log_data.get("task") or (self.current_task.get('task_id') if self.current_task else None)
+            if not task_id:
+                logger.warning("当前任务ID缺失，跳过上传训练日志")
+                return
+
+            if not self.region_id:
+                logger.warning("未设置 region_id，跳过上传训练日志")
+                return
+
+            payload = {
+                "task": task_id,
+                "region_node": log_data.get("region_node") or self.region_id,
+                "device_id": log_data.get("device_id") or self.device_id,
+                "round": log_data.get("round"),
+                "phase": log_data.get("phase", "system"),
+                "level": log_data.get("level", "INFO"),
+                "loss": log_data.get("loss"),
+                "accuracy": log_data.get("accuracy"),
+                "num_examples": log_data.get("num_examples"),
+                "metrics": log_data.get("metrics"),
+                "message": log_data.get("message"),
+                "error_message": log_data.get("error_message"),
+                "duration": log_data.get("duration"),
+                "extra_data": log_data.get("extra_data"),
+            }
+
+            success = self.http_client.upload_training_logs(payload)
+            if not success:
+                logger.warning(f"训练日志上传失败: {payload.get('message')}")
+        except Exception as e:
+            logger.error(f"上传训练日志异常: {e}")
     
     def stop(self):
         """停止设备"""

@@ -228,6 +228,18 @@ class RegionalNode:
                 'started', 
                 {'region_id': self.region_id}
             )
+
+            # 记录区域节点启动任务的日志
+            self._upload_training_log({
+                "task": task_id,
+                "phase": "system",
+                "level": "INFO",
+                "message": f"region {self.region_id} started task {task_id}",
+                "metrics": {
+                    "rounds": rounds,
+                    "device_count": len(devices)
+                }
+            })
             
         except Exception as e:
             logger.error(f"Task Start Processing Error: {e}")
@@ -331,6 +343,17 @@ class RegionalNode:
         
         # 通过 RabbitMQ 上报结果到中央服务器
         self._report_result_to_central_server(device_id, result_data)
+
+        # 记录设备结果日志（如果包含任务ID）
+        task_id = result_data.get("task_id") if isinstance(result_data, dict) else None
+        if task_id:
+            self._upload_training_log({
+                "task": task_id,
+                "phase": "aggregate",
+                "level": "INFO",
+                "message": f"device {device_id} result reported",
+                "metrics": result_data.get("metrics") if isinstance(result_data, dict) else result_data
+            })
     
     def _notify_devices_task_start(self, task_data: Dict[str, Any]):
         """通知边缘设备任务开始"""
@@ -438,6 +461,36 @@ class RegionalNode:
                 pass
         except Exception as e:
             pass
+
+    def _upload_training_log(self, log_data: Dict[str, Any]):
+        """通过 HTTP API 上传训练/聚合日志"""
+        try:
+            task_id = log_data.get("task")
+            if not task_id:
+                return
+
+            payload = {
+                "task": task_id,
+                "region_node": log_data.get("region_node") or self.region_id,
+                "device_id": log_data.get("device_id"),
+                "round": log_data.get("round"),
+                "phase": log_data.get("phase", "system"),
+                "level": log_data.get("level", "INFO"),
+                "loss": log_data.get("loss"),
+                "accuracy": log_data.get("accuracy"),
+                "num_examples": log_data.get("num_examples"),
+                "metrics": log_data.get("metrics"),
+                "message": log_data.get("message"),
+                "error_message": log_data.get("error_message"),
+                "duration": log_data.get("duration"),
+                "extra_data": log_data.get("extra_data"),
+            }
+
+            success = self.http_client.upload_training_logs(payload)
+            if not success:
+                logger.warning(f"训练日志上传失败: {payload.get('message')}")
+        except Exception as e:
+            logger.warning(f"上传训练日志异常: {e}")
     
     def _main_loop(self):
         """主循环 - 保持服务运行"""
@@ -485,6 +538,19 @@ class RegionalNode:
                 file_path = upload_result.get('file_path')
                 logger.info(f"联邦学习完成，模型已上传: {file_path}{upload_result}")
 
+                # 记录聚合完成日志
+                self._upload_training_log({
+                    "task": task_id,
+                    "phase": "aggregate",
+                    "level": "INFO",
+                    "round": task_data.get('rounds') if task_data else None,
+                    "message": "federated aggregation finished and model uploaded",
+                    "metrics": {
+                        "model_path": file_path,
+                        "region": self.region_id
+                    }
+                })
+                
                 
                 # 上报任务完成状态到中央服务器
                 self._report_task_status_to_central_server(
@@ -512,6 +578,18 @@ class RegionalNode:
                         'model_path': model_path
                     }
                 )
+                # 记录失败日志
+                self._upload_training_log({
+                    "task": task_id,
+                    "phase": "aggregate",
+                    "level": "ERROR",
+                    "round": task_data.get('rounds') if task_data else None,
+                    "message": "federated aggregation failed when uploading model",
+                    "error_message": "model upload failed",
+                    "metrics": {
+                        "model_path": model_path
+                    }
+                })
             
             logger.info("=" * 60)
             
