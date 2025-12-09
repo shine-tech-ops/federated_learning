@@ -56,7 +56,8 @@ export default {
     systemLogs: 'System Logs',
     systemConfiguration: 'System Configuration',
     siteManagement: 'Site Management',
-    otherConfigurations: 'Other Configurations'
+    otherConfigurations: 'Other Configurations',
+    trainingLog: 'Training Log'
   },
   login: {
     logoutConfirm: 'Are you sure you want to log out?',

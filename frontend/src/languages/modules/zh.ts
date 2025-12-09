@@ -59,6 +59,7 @@ export default {
     otherConfigurations: '其他配置项',
     systemConfig: '系统配置管理',
     federatedTasks: '联邦任务管理',
+    trainingLog: '训练日志',
     modelManagement: '模型管理',
     regionNodeManagement: '区域节点管理',
     edgeNodeManagement: '边缘节点管理',

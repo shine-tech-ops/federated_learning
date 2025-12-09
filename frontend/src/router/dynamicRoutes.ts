@@ -26,6 +26,16 @@ export const dynamicRoutes: Array<RouteRecordRaw> = [
     }
   },
   {
+    path: '/federated/training-log',
+    name: 'federatedTrainingLog',
+    component: () => import('@/views/federated/training_log/index.vue'),
+    meta: {
+      title: 'menu.trainingLog',
+      icon: 'DocumentCopy',
+      isKeepAlive: true
+    }
+  },
+  {
     path: '/model/management',
     name: 'modelManagement',
     component: () => import('@/views/model/management/index.vue'),
