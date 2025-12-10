@@ -54,3 +54,4 @@ export const {
   uploadTrainingLogApi,
   getTrainingLogStatsApi
 } = trainingLogModel
+
