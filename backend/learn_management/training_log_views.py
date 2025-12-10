@@ -199,3 +199,4 @@ class FederatedTrainingLogStatsView(GenericAPIView):
                 "data": str(e),
             }
             return Response(ret_data)
+
