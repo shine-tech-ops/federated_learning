@@ -1,10 +1,9 @@
 from django.conf import settings
 from rest_framework.permissions import BasePermission
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 import hashlib
 import time
-from django.conf import settings
-from rest_framework.permissions import BasePermission
 
 from .redis_client import RedisClient
 from .common_constant import REDIS_AUTH_TOKEN_PREFIX
@@ -30,10 +29,23 @@ class PassAuthenticatedPermission(BasePermission):
     def has_permission(self, request, view):
         if request.method == "OPTIONS":
             return True
-        if (
-            request.headers.get("authorization")
-            and request.headers.get("authorization") in settings.X_API_TOKENS
-        ):
+        auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
+
+        # 优先尝试 Bearer/JWT
+        if auth_header and auth_header.startswith("Bearer "):
+            jwt_auth = JWTAuthentication()
+            try:
+                user_auth = jwt_auth.authenticate(request)
+                if user_auth:
+                    # DRF 会把 user、auth 挂在 request 上，后续视图可直接使用
+                    request.user, request.auth = user_auth
+                    return True
+            except Exception:
+                # JWT 解析失败则继续尝试静态 token
+                pass
+
+        # 兼容原先的静态白名单 token
+        if auth_header and auth_header in settings.X_API_TOKENS:
             return True
-        else:
-            return False
+
+        return False
