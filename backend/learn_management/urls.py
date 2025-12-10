@@ -14,6 +14,8 @@ from .federated_task_views import (
 from .system_config_views import SystemConfigView, SystemConfigActivateView, AggregationMethodView
 from .model_views import ModelVersionView, ModelRollbackView, ModelInfoView, ModelVersionDeployView, ModelVersionDownloadView, ModelFileUploadView
 from .model_inference_views import ModelInferenceLogView
+from .model_chat_log_views import ModelChatLogView
+from .serializers import ModelChatLogInputSerializer, ModelChatLogSerializer
 from .region_node_view import RegionNodeView
 from .edge_node_view import EdgeNodeView, EdgeNodeHeartbeatView
 from .system_log_view import SystemLogView
@@ -23,7 +25,8 @@ from .training_log_views import FederatedTrainingLogView, FederatedTrainingLogSt
 
 # 封装带 tag 的视图函数（支持多个 method）
 def tagged_view(
-        view_class, tag, methods=None, operation_summaries=None, operation_descriptions=None
+        view_class, tag, methods=None, operation_summaries=None, operation_descriptions=None,
+        request_bodies=None, responses=None
 ):
     if methods is None:
         methods = ['get', 'post', 'put', 'delete', 'patch']
@@ -34,6 +37,8 @@ def tagged_view(
         method_upper = method.upper()
         summary = None
         description = None
+        request_body = None
+        response_schema = None
 
         if operation_summaries and isinstance(operation_summaries, dict) and method in operation_summaries:
             summary = operation_summaries[method]
@@ -45,12 +50,28 @@ def tagged_view(
         elif operation_descriptions and isinstance(operation_descriptions, str):
             description = operation_descriptions
 
-        if summary or description:
+        if request_bodies and isinstance(request_bodies, dict) and method in request_bodies:
+            request_body = request_bodies[method]
+        elif request_bodies and not isinstance(request_bodies, dict):
+            request_body = request_bodies
+
+        if responses and isinstance(responses, dict):
+            response_schema = responses.get(method)
+        elif responses:
+            response_schema = responses
+
+        if summary or description or request_body or response_schema:
+            if response_schema and not isinstance(response_schema, dict):
+                # 兼容直接传 Serializer 的写法，默认包一层 200
+                response_schema = {200: response_schema}
+
             decorated_view = swagger_auto_schema(
                 tags=[tag],
                 methods=[method],
                 operation_summary=summary,
-                operation_description=description
+                operation_description=description,
+                request_body=request_body,
+                responses=response_schema if response_schema else None
             )(decorated_view)
 
     return decorated_view
@@ -245,6 +266,25 @@ urlpatterns = [
             }
         ),
         name='model_version'
+    ),
+    path(
+        'model_chat_log/',
+        tagged_view(
+            ModelChatLogView,
+            "模型管理",
+            methods=['get', 'post'],
+            operation_summaries={
+                'get': '查询模型对话日志',
+                'post': '上传模型对话日志'
+            },
+            operation_descriptions={
+                'get': '根据模型、时间范围等条件查询对话日志，支持分页',
+                'post': '上传模型对话日志，支持单条或批量'
+            },
+            request_bodies={'post': ModelChatLogInputSerializer},
+            responses={'post': {200: ModelChatLogSerializer}}
+        ),
+        name='model_chat_log'
     ),
     path(
         'model_rollback/',

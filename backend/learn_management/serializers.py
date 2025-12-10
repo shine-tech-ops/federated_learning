@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 from rest_framework import serializers
-from .models import FederatedTask, SystemConfig, ModelVersion, ModelInfo, RegionNode, EdgeNode, TrainingRecord, OperationLog, ModelInferenceLog, FederatedTrainingLog
+from .models import FederatedTask, SystemConfig, ModelVersion, ModelInfo, RegionNode, EdgeNode, TrainingRecord, OperationLog, ModelInferenceLog, FederatedTrainingLog, ModelChatLog
 from user.serializers import CommonUserSerializer
 import utils.common_constant as const
 
@@ -109,6 +109,25 @@ class ModelInferenceLogSerializer(serializers.ModelSerializer):
         model = ModelInferenceLog
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at', 'created_by']
+
+
+class ModelChatLogSerializer(serializers.ModelSerializer):
+    model_info_detail = ModelInfoSerializer(source='model_info', read_only=True)
+    model_version_detail = ModelVersionSerializer(source='model_version', read_only=True)
+    created_by_detail = CommonUserSerializer(source='created_by', read_only=True)
+
+    class Meta:
+        model = ModelChatLog
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at', 'created_by']
+
+
+class ModelChatLogInputSerializer(serializers.ModelSerializer):
+    """仅用于 Swagger 请求体展示的输入序列化器，避免 *_detail 混入"""
+
+    class Meta:
+        model = ModelChatLog
+        fields = ['model_info', 'model_version', 'input_text', 'output_text', 'extra_data']
 
 
 class FederatedTrainingLogSerializer(serializers.ModelSerializer):

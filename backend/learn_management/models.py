@@ -265,6 +265,36 @@ class ModelInferenceLog(models.Model):
         ordering = ["-id"]
 
 
+class ModelChatLog(models.Model):
+    """模型对话日志表"""
+
+    model_info = models.ForeignKey('ModelInfo', on_delete=models.CASCADE, related_name='chat_logs', verbose_name="模型")
+    model_version = models.ForeignKey('ModelVersion', on_delete=models.SET_NULL, null=True, blank=True, related_name='chat_logs', verbose_name="模型版本")
+    input_text = models.TextField(verbose_name="模型输入")
+    output_text = models.TextField(blank=True, null=True, verbose_name="模型输出")
+    extra_data = models.JSONField(default=dict, blank=True, null=True, verbose_name="扩展数据")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+    created_by = models.ForeignKey(
+        AuthUserExtend,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='model_chat_logs_created_by',
+        verbose_name="创建人"
+    )
+
+    class Meta:
+        db_table = "model_chat_log"
+        db_table_comment = "模型对话日志表"
+        verbose_name = "模型对话日志"
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=['model_info', 'created_at']),
+            models.Index(fields=['model_version', 'created_at']),
+        ]
+
+
 class OperationLog(models.Model):
     user = models.ForeignKey(AuthUserExtend, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="用户")
     ip = models.CharField(max_length=100, null=True, blank=True, verbose_name="IP地址")
