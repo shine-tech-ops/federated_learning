@@ -174,13 +174,21 @@ let deviceChart = null
 
 const hasErrors = ref(false)
 
+// 兼容拦截器处理后的响应（默认返回 data），以及仍然包含 code/data 的旧格式
+const normalizeResponse = (res: any) => {
+  if (!res) return {}
+  if (typeof res === 'object' && 'code' in res && 'data' in res) {
+    return res.data
+  }
+  return res
+}
+
 // 获取任务列表
 const getTasks = async () => {
   try {
     const res = await federatedTaskModel.getTasksApi()
-    if (res.code === 200) {
-      tasks.value = res.data?.results || res.data || []
-    }
+    const data = normalizeResponse(res)
+    tasks.value = data?.results || data?.list || data?.data || data || []
   } catch (error) {
     console.error('获取任务列表失败:', error)
   }
@@ -203,20 +211,37 @@ const getList = async () => {
     })
 
     const res = await trainingLogModel.getTrainingLogsApi(params)
-    if (res.code === 200) {
-      tableData.value = res.data?.results || res.data?.data || []
-      page.value.total = res.data?.total || 0
-      
-      // 提取设备和轮次列表
-      const uniqueDevices = [...new Set(tableData.value.map(log => log.device_id).filter(Boolean))]
-      devices.value = uniqueDevices
-      
-      const uniqueRounds = [...new Set(tableData.value.map(log => log.round).filter(r => r !== null && r !== undefined))].sort((a, b) => a - b)
-      rounds.value = uniqueRounds
-      
-      // 检查是否有错误
-      hasErrors.value = tableData.value.some(log => log.error_message)
+    const data = normalizeResponse(res)
+
+    // 兼容不同接口返回结构（list/results/data）
+    const list =
+      data?.list ||
+      data?.results ||
+      (Array.isArray(data?.data) ? data?.data : data?.data?.list) ||
+      data?.data ||
+      []
+    tableData.value = list
+
+    // 兼容不同总数字段
+    page.value.total =
+      data?.total ??
+      data?.data?.total ??
+      (Array.isArray(list) ? list.length : 0)
+
+    // 如果后端返回当前页信息，覆盖本地页码
+    if (data?.page) {
+      page.value.page = data.page
     }
+    
+    // 提取设备和轮次列表
+    const uniqueDevices = [...new Set(tableData.value.map(log => log.device_id).filter(Boolean))]
+    devices.value = uniqueDevices
+    
+    const uniqueRounds = [...new Set(tableData.value.map(log => log.round).filter(r => r !== null && r !== undefined))].sort((a, b) => a - b)
+    rounds.value = uniqueRounds
+    
+    // 检查是否有错误
+    hasErrors.value = tableData.value.some(log => log.error_message)
   } catch (error) {
     console.error('获取日志列表失败:', error)
   } finally {
@@ -230,12 +255,11 @@ const getStats = async () => {
   
   try {
     const res = await trainingLogModel.getTrainingLogStatsApi({ task_id: search.value.task_id })
-    if (res.code === 200) {
-      stats.value = res.data
-      nextTick(() => {
-        updateCharts()
-      })
-    }
+    const data = normalizeResponse(res)
+    stats.value = data
+    nextTick(() => {
+      updateCharts()
+    })
   } catch (error) {
     console.error('获取统计信息失败:', error)
   }
