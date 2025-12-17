@@ -71,13 +71,17 @@ class HTTPClient:
         """上报任务状态到中央服务器"""
         # 如果是完成状态，调用完成接口
         if status == 'completed':
-            return self.complete_task(task_id)
+            # 从 details 中提取 model_file_path
+            model_file_path = details.get('model_file_path') if details else None
+            return self.complete_task(task_id, model_file_path=model_file_path)
         return True
     
-    def complete_task(self, task_id: str) -> bool:
+    def complete_task(self, task_id: str, model_file_path: str = None) -> bool:
         """上报任务完成到中央服务器"""
         endpoint = "/api/v1/learn_management/federated_task/complete/"
         data = {'id': int(task_id)}
+        if model_file_path:
+            data['model_file_path'] = model_file_path
         
         result = self._make_request('POST', endpoint, data)
         if result and result.get('code') == 200:

@@ -17,6 +17,7 @@ class TaskStartSerializer(serializers.Serializer):
 
 class TaskCompleteSerializer(serializers.Serializer):
     id = serializers.IntegerField(help_text='联邦学习任务ID')
+    model_file_path = serializers.CharField(required=False, allow_null=True, allow_blank=True, help_text='训练完成后的模型文件路径')
 
 
 def get_system_config():
@@ -363,9 +364,10 @@ class FederatedTaskCompleteView(GenericAPIView):
                 })
 
             task_id = serializer.validated_data['id']
+            model_file_path = serializer.validated_data.get('model_file_path')
             
             try:
-                task = self.queryset.get(id=task_id)
+                task = self.queryset.select_related('model_version').get(id=task_id)
             except FederatedTask.DoesNotExist:
                 return Response({
                     "code": status.HTTP_404_NOT_FOUND,
@@ -378,10 +380,25 @@ class FederatedTaskCompleteView(GenericAPIView):
             task.updated_at = datetime.now()
             task.save()
 
+            # 如果提供了模型文件路径，且任务关联了模型版本，则更新模型版本的文件路径
+            if model_file_path and task.model_version:
+                try:
+                    task.model_version.model_file = model_file_path
+                    task.model_version.updated_at = datetime.now()
+                    task.model_version.save()
+                    logger.info(f"已更新任务 {task_id} 的模型版本 {task.model_version.id} 的文件路径: {model_file_path}")
+                except Exception as e:
+                    logger.error(f"更新模型版本文件路径失败: {e}")
+                    # 不阻断任务完成流程，只记录错误
+
             return Response({
                 "code": status.HTTP_200_OK,
                 "msg": "任务已完成",
-                "data": {"task_id": task_id, "status": "completed"},
+                "data": {
+                    "task_id": task_id, 
+                    "status": "completed",
+                    "model_file_updated": bool(model_file_path and task.model_version)
+                },
             })
 
         except Exception as e:
