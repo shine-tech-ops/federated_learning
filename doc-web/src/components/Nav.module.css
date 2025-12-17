@@ -1,0 +1,133 @@
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 10%;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.logoText {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-heading);
+}
+
+.desktopLinks {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.navLink {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-body);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.navLink:hover {
+  color: var(--text-heading);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.githubBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--secondary-main);
+  color: white;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: transform var(--transition-spring), opacity var(--transition-fast);
+}
+
+.githubBtn:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.mobileMenuBtn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  color: var(--text-heading);
+}
+
+.mobileMenu {
+  display: none;
+  flex-direction: column;
+  padding: 16px 10%;
+  background: var(--bg-surface);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.mobileNavLink {
+  padding: 12px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-body);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.mobileGithubBtn {
+  margin-top: 16px;
+  padding: 14px 24px;
+  background: var(--secondary-main);
+  color: white;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-weight: 600;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 5%;
+  }
+  
+  .desktopLinks,
+  .actions {
+    display: none;
+  }
+  
+  .mobileMenuBtn {
+    display: block;
+  }
+  
+  .mobileMenu {
+    display: flex;
+  }
+}
