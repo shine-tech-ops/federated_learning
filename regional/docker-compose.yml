@@ -35,7 +35,7 @@ services:
       - RABBITMQ_USER=${RABBITMQ_USER:-rabbitmq}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-rabbitmq}
       # 中央服务器配置
-      - CENTRAL_SERVER_URL=${CENTRAL_SERVER_URL:-http://localhost:8000}
+      - CENTRAL_SERVER_URL=${CENTRAL_SERVER_URL:-http://127.0.0.1:8085}
     depends_on:
       - mqtt
     restart: always
