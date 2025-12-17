@@ -12,7 +12,7 @@
 .container {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 10%;
+  padding: 0 5%;
   height: 72px;
   display: flex;
   align-items: center;
@@ -24,12 +24,19 @@
   align-items: center;
   gap: 12px;
   text-decoration: none;
+  flex-shrink: 0;
 }
 
 .logoText {
   font-size: 20px;
   font-weight: 800;
   color: var(--text-heading);
+}
+
+.rightSection {
+  display: flex;
+  align-items: center;
+  gap: 48px;
 }
 
 .desktopLinks {
@@ -128,8 +135,7 @@
     padding: 0 5%;
   }
   
-  .desktopLinks,
-  .actions {
+  .rightSection {
     display: none;
   }
   

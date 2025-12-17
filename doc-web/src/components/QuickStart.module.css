@@ -1,6 +1,5 @@
 .quickstart {
   padding: 96px 0;
-  background: var(--bg-neutral-subtle);
 }
 
 .container {
@@ -43,9 +42,12 @@
 
 .steps {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 32px;
   margin-bottom: 48px;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .stepCard {
@@ -54,6 +56,8 @@
   padding: 32px;
   box-shadow: var(--shadow-soft);
   transition: transform var(--transition-spring), box-shadow var(--transition-normal);
+  display: flex;
+  flex-direction: column;
 }
 
 .stepCard:hover {
@@ -91,13 +95,17 @@
   font-size: 15px;
   color: var(--text-body);
   margin-bottom: 20px;
-  line-height: 1.5;
+  line-height: 1.6;
+  min-height: 48px;
 }
 
 .codeBlock {
   background: #1a1a2e;
   border-radius: var(--radius-sm);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
 }
 
 .codeHeader {
@@ -130,6 +138,9 @@
   padding: 16px;
   margin: 0;
   overflow-x: auto;
+  flex-grow: 1;
+  display: flex;
+  align-items: flex-start;
 }
 
 .code code {
@@ -164,12 +175,10 @@
 }
 
 /* Responsive */
-@media (max-width: 1024px) {
+@media (max-width: 968px) {
   .steps {
     grid-template-columns: 1fr;
     max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
   }
 }
 

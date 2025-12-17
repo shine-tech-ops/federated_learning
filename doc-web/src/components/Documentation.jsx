@@ -11,11 +11,11 @@ const docs = {
 
 ## Documentation Index
 
-- [Architecture](architecture) - System architecture and components
-- [Deployment](deployment) - System deployment and operations
-- [Development](development) - Development and extension guide
-- [Adding Models](adding-models) - How to add new models to federated learning
-- [Federated Learning System](federated-learning-system) - Core architecture and implementation details
+- [Architecture](docs/architecture) - System architecture and components
+- [Deployment](docs/deployment) - System deployment and operations
+- [Development](docs/development) - Development and extension guide
+- [Adding Models](docs/adding-models) - How to add new models to federated learning
+- [Federated Learning System](docs/federated-learning-system) - Core architecture and implementation details
 
 ## Quick Start
 

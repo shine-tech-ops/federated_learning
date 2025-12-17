@@ -4,13 +4,13 @@ import styles from './QuickStart.module.css'
 const steps = [
   {
     step: '01',
-    title: 'Install Flower',
-    description: 'Install Flower via pip with a single command.',
+    title: 'Install',
+    description: 'Install via pip with a single command.',
     code: 'pip install flwr',
   },
   {
     step: '02',
-    title: 'Start Training',
+    title: 'Quick Run In Single Node',
     description: 'Launch the server and connect your clients.',
     code: `# Start server
 fl.server.start_server(config=fl.server.ServerConfig(num_rounds=3))
