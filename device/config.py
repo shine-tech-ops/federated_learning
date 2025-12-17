@@ -28,8 +28,8 @@ class Config:
 
     def __init__(self) -> None:
         # 设备与区域信息
-        self.device_id = self._get_env("DEVICE_ID", "123")
-        # self.device_id = self._get_env("DEVICE_ID", "device_001")
+        # self.device_id = self._get_env("DEVICE_ID", "123")
+        self.device_id = self._get_env("DEVICE_ID", "device_001")
 
         self.region_id = int(self._get_env("REGION_ID", "3"))
 

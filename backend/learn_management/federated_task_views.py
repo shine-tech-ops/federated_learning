@@ -9,9 +9,13 @@ from .models import FederatedTask, ModelInfo, ModelVersion, RegionNode, SystemCo
 from .serializers import FederatedTaskSerializer
 from backend.pagination import CustomPagination
 from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import AllowAny
 from utils.rabbitmq_client import RabbitMQClient
 
 class TaskStartSerializer(serializers.Serializer):
+    id = serializers.IntegerField(help_text='联邦学习任务ID')
+
+class TaskCompleteSerializer(serializers.Serializer):
     id = serializers.IntegerField(help_text='联邦学习任务ID')
 
 
@@ -334,6 +338,57 @@ class FederatedTaskStartView(GenericAPIView):
             return Response({
                 "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "msg": "任务启动失败",
+                "data": str(e),
+            })
+
+
+class FederatedTaskCompleteView(GenericAPIView):
+    """
+    联邦学习任务完成接口
+    不需要权限，供 regional 节点调用
+    """
+    queryset = FederatedTask.objects.all()
+    serializer_class = TaskCompleteSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        """标记任务为完成状态"""
+        try:
+            serializer = self.get_serializer(data=request.data)
+            if not serializer.is_valid():
+                return Response({
+                    "code": status.HTTP_400_BAD_REQUEST,
+                    "msg": "参数验证失败",
+                    "data": serializer.errors,
+                })
+
+            task_id = serializer.validated_data['id']
+            
+            try:
+                task = self.queryset.get(id=task_id)
+            except FederatedTask.DoesNotExist:
+                return Response({
+                    "code": status.HTTP_404_NOT_FOUND,
+                    "msg": "任务不存在",
+                    "data": {},
+                })
+
+            # 更新任务状态为完成
+            task.status = 'completed'
+            task.updated_at = datetime.now()
+            task.save()
+
+            return Response({
+                "code": status.HTTP_200_OK,
+                "msg": "任务已完成",
+                "data": {"task_id": task_id, "status": "completed"},
+            })
+
+        except Exception as e:
+            traceback.print_exc()
+            return Response({
+                "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "msg": "任务完成失败",
                 "data": str(e),
             })
    

@@ -69,22 +69,23 @@ class HTTPClient:
     
     def report_task_status(self, task_id: str, status: str, region_id: str, details: Dict[str, Any] = None) -> bool:
         """上报任务状态到中央服务器"""
-        # data = {
-        #     'task_id': task_id,
-        #     'status': status,
-        #     'region_id': region_id,
-        #     'details': details or {},
-        #     'timestamp': time.time()
-        # }
-        
-        # result = self._make_request('POST', '/api/regional/task-status/', data)
-        # if result:
-        #     logger.info(f"任务状态上报成功: {task_id} -> {status}")
-        #     return True
-        # else:
-        #     logger.error(f"任务状态上报失败: {task_id} -> {status}")
-        #     return False
+        # 如果是完成状态，调用完成接口
+        if status == 'completed':
+            return self.complete_task(task_id)
         return True
+    
+    def complete_task(self, task_id: str) -> bool:
+        """上报任务完成到中央服务器"""
+        endpoint = "/api/v1/learn_management/federated_task/complete/"
+        data = {'id': int(task_id)}
+        
+        result = self._make_request('POST', endpoint, data)
+        if result and result.get('code') == 200:
+            logger.info(f"任务完成上报成功: {task_id}")
+            return True
+        else:
+            logger.error(f"任务完成上报失败: {task_id}, result: {result}")
+            return False
     
     def report_device_result(self, device_id: str, result_data: Dict[str, Any], region_id: str) -> bool:
         """上报设备训练结果到中央服务器"""

@@ -9,7 +9,8 @@ from .federated_task_views import (
     FederatedTaskView,
     FederatedTaskStartView,
     FederatedTaskPauseView,
-    FederatedTaskResumeView
+    FederatedTaskResumeView,
+    FederatedTaskCompleteView
 )
 from .system_config_views import SystemConfigView, SystemConfigActivateView, AggregationMethodView
 from .model_views import ModelVersionView, ModelRollbackView, ModelInfoView, ModelVersionDeployView, ModelVersionDownloadView, ModelFileUploadView
@@ -146,6 +147,11 @@ urlpatterns = [
         ),
        
         name="federated-task-start"
+    ),
+    path(
+        "federated_task/complete/",
+        FederatedTaskCompleteView.as_view(),
+        name="federated-task-complete"
     ),   
     # ======================
     # 系统管理相关 API - tag: "系统配置"

@@ -7,7 +7,16 @@
   <el-table :data="tasks" border style="width: 100%">
     <el-table-column prop="id" label="任务ID" />
     <el-table-column prop="name" label="任务名称" />
-    <el-table-column prop="status" label="状态" />
+    <el-table-column prop="status" label="状态">
+      <template #default="{ row }">
+        <span v-if="row.status === 'completed'">完成的</span>
+        <span v-else-if="row.status === 'running'">运行中</span>
+        <span v-else-if="row.status === 'paused'">已暂停</span>
+        <span v-else-if="row.status === 'pending'">待开始</span>
+        <span v-else>{{ row.status }}</span>
+      </template>
+    </el-table-column>
+    
     <el-table-column prop="model_info_detail.name" label="模型" />
     <el-table-column prop="model_version_detail.version" label="版本" />
     <el-table-column prop="region_node_detail.name" label="区域服务器" />
@@ -22,15 +31,17 @@
     </el-table-column>
     <el-table-column label="操作" width="240">
       <template #default="{ row }">
-        <el-button size="small" type="primary" @click="editTask(row)">编辑</el-button>
+        <el-button size="small" type="primary" @click="editTask(row)" >编辑</el-button>
         <el-popconfirm title="确定要删除这个任务吗？" @confirm="deleteTask(row.id)">
           <template #reference>
             <el-button size="small" type="danger">删除</el-button>
           </template>
         </el-popconfirm>
-        <el-button size="small" type="warning" @click="startTask(row)" v-if="row.status != 'running' && row.status != 'paused'">开始</el-button>
-        <el-button size="small" type="warning" @click="pauseTask(row)" v-if="row.status === 'running'">暂停</el-button>
+        <el-button size="small" type="warning" @click="startTask(row)" v-if="row.status != 'running' && row.status != 'paused' && row.status != 'completed'">开始</el-button>
+        <el-button size="small" type="warning" disabled v-if="row.status === 'running'">执行中</el-button>
         <el-button size="small" type="success" @click="resumeTask(row)" v-if="row.status === 'paused'">继续</el-button>
+        <el-button size="small" type="success"  v-if="row.status === 'completed'">已完成</el-button>
+
       </template>
     </el-table-column>
   </el-table>
