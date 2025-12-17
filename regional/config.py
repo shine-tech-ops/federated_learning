@@ -95,6 +95,12 @@ class Config:
             'retry_delay': int(self._get_env('CENTRAL_SERVER_RETRY_DELAY', '5'))
         }
         
+        # Flower 服务器配置
+        self.flower_server = {
+            'host': self._get_env('FLOWER_SERVER_HOST', ''),  # 如果为空，将使用 MQTT broker IP 或自动检测
+            'port': int(self._get_env('FLOWER_SERVER_PORT', '8080'))
+        }
+        
         # 调试配置
         self.debug = {
             'enabled': self._get_env('DEBUG', 'false').lower() == 'true',

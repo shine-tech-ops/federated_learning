@@ -23,7 +23,7 @@ from mnist_model import create_model, get_model_parameters, set_model_parameters
 class FedServerManager:
     """Flower Server Manager"""
     
-    def __init__(self, region_id: str, completion_callback=None):
+    def __init__(self, region_id: str, completion_callback=None, log_callback=None):
         self.region_id = region_id
         self.server_thread: Optional[threading.Thread] = None
         self.server_running = False
@@ -32,6 +32,7 @@ class FedServerManager:
         self.server_config = None
         self.completion_callback = completion_callback  # 完成回调函数
         self.final_model_path = None  # 最终模型路径
+        self.log_callback = log_callback  # 日志上传回调函数
     
     def start_server(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """Start Flower server"""
@@ -56,6 +57,21 @@ class FedServerManager:
                 'server_id': f"federated_server_{task_data['task_id']}"
             }
             
+            # 上传服务器启动日志
+            self._upload_log(
+                phase="system",
+                level="INFO",
+                message=f"Flower server starting for task {task_data['task_id']}",
+                metrics={
+                    "server_id": self.server_config['server_id'],
+                    "host": self.server_config['host'],
+                    "port": self.server_config['port'],
+                    "rounds": task_data.get('rounds', 0),
+                    "participation_rate": task_data.get('participation_rate', 100),
+                    "device_count": len(task_data.get('edge_devices', []))
+                }
+            )
+            
             # Start server in background thread
             self.server_thread = threading.Thread(
                 target=self._run_server,
@@ -72,6 +88,13 @@ class FedServerManager:
             
         except Exception as e:
             flower_logger.error(f"Failed to start Flower server: {e}")
+            # 上传错误日志
+            self._upload_log(
+                phase="system",
+                level="ERROR",
+                message=f"Failed to start Flower server: {e}",
+                error_message=str(e)
+            )
             raise
     
     def _run_server(self):
@@ -105,6 +128,19 @@ class FedServerManager:
             
             flower_logger.info(f"Starting federated learning server for task: {self.current_task['task_id']}")
             
+            # 上传服务器运行开始日志
+            self._upload_log(
+                phase="aggregate",
+                level="INFO",
+                message=f"Federated learning server started for task {self.current_task['task_id']}",
+                metrics={
+                    "participation_rate": participation_rate,
+                    "min_clients": min_clients,
+                    "aggregation_method": self.current_task.get('aggregation_method', 'fedavg') if self.current_task else 'fedavg',
+                    "rounds": self.current_task.get('rounds', 10) if self.current_task else 10
+                }
+            )
+            
             # Start server
             self.server_running = True
 
@@ -121,11 +157,30 @@ class FedServerManager:
             
             flower_logger.info(f"Federated learning completed for task: {self.current_task['task_id']}")
             
+            # 上传训练完成日志
+            self._upload_log(
+                phase="aggregate",
+                level="INFO",
+                message=f"Federated learning completed for task {self.current_task['task_id']}",
+                round=num_rounds,
+                metrics={
+                    "total_rounds": num_rounds,
+                    "status": "completed"
+                }
+            )
+            
             # 联邦学习完成，查找最终模型文件
             self._handle_training_completion()
             
         except Exception as e:
             flower_logger.error(f"Failed to run federated learning server: {e}")
+            # 上传错误日志
+            self._upload_log(
+                phase="aggregate",
+                level="ERROR",
+                message=f"Federated learning server failed: {e}",
+                error_message=str(e)
+            )
         finally:
             self.server_running = False
     
@@ -144,10 +199,29 @@ class FedServerManager:
             accuracy = 0.0
             metrics = {"loss": loss, "accuracy": accuracy}
             
+            # 上传每轮聚合后的评估日志
+            self._upload_log(
+                phase="aggregate",
+                level="INFO",
+                message=f"Round {server_round} aggregation completed",
+                round=server_round,
+                loss=loss,
+                accuracy=accuracy,
+                metrics=metrics
+            )
+            
             return loss, metrics
             
         except Exception as e:
             flower_logger.error(f"Server-side evaluation failed: {e}")
+            # 上传评估错误日志
+            self._upload_log(
+                phase="aggregate",
+                level="ERROR",
+                message=f"Server-side evaluation failed at round {server_round}: {e}",
+                round=server_round,
+                error_message=str(e)
+            )
             return 0.0, {}
     
     def _fit_config_fn(self, server_round: int):
@@ -170,6 +244,14 @@ class FedServerManager:
         try:
             if self.server_running:
                 flower_logger.info("Stopping federated learning server...")
+                
+                # 上传服务器停止日志
+                self._upload_log(
+                    phase="system",
+                    level="INFO",
+                    message=f"Flower server stopping for task {self.current_task.get('task_id') if self.current_task else 'unknown'}"
+                )
+                
                 self.server_running = False
                 
                 # Wait for server thread to end
@@ -182,27 +264,20 @@ class FedServerManager:
                 
         except Exception as e:
             flower_logger.error(f"Failed to stop Flower server: {e}")
+            # 上传停止错误日志
+            self._upload_log(
+                phase="system",
+                level="ERROR",
+                message=f"Failed to stop Flower server: {e}",
+                error_message=str(e)
+            )
     
     def _get_server_info(self) -> Dict[str, Any]:
         """Get server information"""
         # 获取实际可访问的 IP 地址（用于客户端连接）
         # 如果 host 是 0.0.0.0，需要获取实际 IP
         host = self.server_config['host']
-        if host == '0.0.0.0' or host == 'localhost':
-            # 获取本机实际 IP 地址（用于外部连接）
-            try:
-                import socket
-                # 创建一个 UDP socket 来获取本机 IP
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                # 不需要实际连接，只是用来获取本机 IP
-                s.connect(("8.8.8.8", 80))
-                actual_ip = s.getsockname()[0]
-                s.close()
-                host = actual_ip
-                flower_logger.info(f"Resolved 0.0.0.0 to actual IP: {host}")
-            except Exception as e:
-                flower_logger.warning(f"Failed to get actual IP address: {e}, using {host}")
-        
+       
         return {
             "host": host,
             "port": self.server_config['port'],
@@ -213,6 +288,35 @@ class FedServerManager:
     def is_running(self) -> bool:
         """Check if server is running"""
         return self.server_running
+    
+    def _upload_log(self, phase: str, level: str, message: str, round: Optional[int] = None,
+                    loss: Optional[float] = None, accuracy: Optional[float] = None,
+                    metrics: Optional[Dict[str, Any]] = None, error_message: Optional[str] = None):
+        """上传日志到中央服务器的辅助方法"""
+        if not self.log_callback:
+            return
+        
+        try:
+            log_data = {
+                "task": self.current_task.get('task_id') if self.current_task else None,
+                "region_node": self.region_id,
+                "device_id": None,  # 服务器端日志没有设备ID
+                "round": round,
+                "phase": phase,
+                "level": level,
+                "loss": loss,
+                "accuracy": accuracy,
+                "num_examples": None,
+                "metrics": metrics,
+                "message": message,
+                "error_message": error_message,
+                "duration": None,
+                "extra_data": None
+            }
+            
+            self.log_callback(log_data)
+        except Exception as e:
+            flower_logger.warning(f"Failed to upload log: {e}")
     
     def _store_parameters(self, server_round: int, parameters):
         """Store parameters based on storage strategy"""
@@ -244,8 +348,31 @@ class FedServerManager:
             if should_save:
                 self._save_parameters_to_file(parameters, filename, server_round)
                 
+                # 上传模型保存日志
+                model_type = "checkpoint" if server_round % 5 == 0 else "final_model"
+                self._upload_log(
+                    phase="aggregate",
+                    level="INFO",
+                    message=f"Model {model_type} saved at round {server_round}",
+                    round=server_round,
+                    metrics={
+                        "model_type": model_type,
+                        "model_path": filename,
+                        "parameter_count": len(parameters),
+                        "total_parameters": sum(p.size for p in parameters)
+                    }
+                )
+                
         except Exception as e:
             flower_logger.error(f"Failed to store parameters at round {server_round}: {e}")
+            # 上传参数保存错误日志
+            self._upload_log(
+                phase="aggregate",
+                level="ERROR",
+                message=f"Failed to store parameters at round {server_round}: {e}",
+                round=server_round,
+                error_message=str(e)
+            )
     
     def _save_parameters_to_file(self, parameters, filepath: str, server_round: int):
         """Save parameters to file with metadata"""
@@ -346,6 +473,21 @@ class FedServerManager:
                         flower_logger.error(f"Error in completion callback: {e}")
             else:
                 flower_logger.warning("Final model file not found after training completion")
+                # 上传模型未找到警告日志
+                self._upload_log(
+                    phase="aggregate",
+                    level="WARNING",
+                    message="Final model file not found after training completion",
+                    round=self.current_task.get('rounds') if self.current_task else None
+                )
                 
         except Exception as e:
             flower_logger.error(f"Error handling training completion: {e}")
+            # 上传训练完成处理错误日志
+            self._upload_log(
+                phase="aggregate",
+                level="ERROR",
+                message=f"Error handling training completion: {e}",
+                error_message=str(e),
+                round=self.current_task.get('rounds') if self.current_task else None
+            )

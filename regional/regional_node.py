@@ -42,10 +42,11 @@ class RegionalNode:
         self.mqtt_client = MQTTClient(self.config)          # 与边缘设备通讯
         self.http_client = HTTPClient(self.config.central_server)  # 向中央服务器上报状态
         
-        # Flower 服务器管理器（带完成回调）
+        # Flower 服务器管理器（带完成回调和日志回调）
         self.fed_server = FedServerManager(
             self.region_id,
-            completion_callback=self._handle_training_completion
+            completion_callback=self._handle_training_completion,
+            log_callback=self._upload_training_log  # 传递日志上传回调
         )
         
         # 运行状态
@@ -306,7 +307,8 @@ class RegionalNode:
                 elif action == 'heartbeat':
                     self._handle_device_heartbeat(device_id, message)
                 elif action == 'training':
-                    self._handle_device_training(device_id, message)
+                    # self._handle_device_training(device_id, message)
+                    pass
                 elif action == 'result':
                     self._handle_device_result(device_id, message)
                 else:
@@ -334,6 +336,43 @@ class RegionalNode:
         logger.info(f"设备 {device_id} 训练进度: {training_data}")
         # 更新设备训练进度
         self.task_manager.update_device_training_progress(device_id, training_data)
+        
+        # 记录训练进度日志（如果包含任务ID和训练指标）
+        if isinstance(training_data, dict):
+            task_id = training_data.get("task_id")
+            if task_id:
+                # 提取 metrics 信息
+                metrics = training_data.get("metrics", {})
+                
+                # 从 metrics 或 training_data 中提取 loss、accuracy、num_examples
+                # 优先从 training_data 获取，如果不存在则从 metrics 获取
+                loss = training_data.get("loss")
+                if loss is None:
+                    loss = metrics.get("loss")
+                
+                accuracy = training_data.get("accuracy")
+                if accuracy is None:
+                    accuracy = metrics.get("accuracy")
+                
+                num_examples = training_data.get("num_examples")
+                if num_examples is None:
+                    num_examples = metrics.get("num_examples")
+                
+                # 格式化设备ID为 "regional{region_id}_{device_id}"
+                formatted_device_id = f"regional{self.region_id}_{device_id}"
+                
+                self._upload_training_log({
+                    "task": task_id,
+                    "device_id": formatted_device_id,
+                    "round": training_data.get("round"),
+                    "phase": training_data.get("phase", "train"),
+                    "level": "INFO",
+                    "loss": loss,
+                    "accuracy": accuracy,
+                    "num_examples": num_examples,
+                    "message": f"device {device_id} training progress",
+                    "metrics": metrics if metrics else training_data
+                })
     
     def _handle_device_result(self, device_id: str, result_data: Any):
         """处理设备训练结果消息"""
@@ -345,15 +384,41 @@ class RegionalNode:
         self._report_result_to_central_server(device_id, result_data)
 
         # 记录设备结果日志（如果包含任务ID）
-        task_id = result_data.get("task_id") if isinstance(result_data, dict) else None
-        if task_id:
-            self._upload_training_log({
-                "task": task_id,
-                "phase": "aggregate",
-                "level": "INFO",
-                "message": f"device {device_id} result reported",
-                "metrics": result_data.get("metrics") if isinstance(result_data, dict) else result_data
-            })
+        if isinstance(result_data, dict):
+            task_id = result_data.get("task_id")
+            if task_id:
+                # 提取 metrics 信息
+                metrics = result_data.get("metrics", {})
+                
+                # 从 metrics 或 result_data 中提取 loss、accuracy、num_examples
+                # 优先从 result_data 获取，如果不存在则从 metrics 获取
+                loss = result_data.get("loss")
+                if loss is None:
+                    loss = metrics.get("loss")
+                
+                accuracy = result_data.get("accuracy")
+                if accuracy is None:
+                    accuracy = metrics.get("accuracy")
+                
+                num_examples = result_data.get("num_examples")
+                if num_examples is None:
+                    num_examples = metrics.get("num_examples")
+                
+                # 格式化设备ID为 "regional{region_id}_{device_id}"
+                formatted_device_id = f"regional{self.region_id}_{device_id}"
+                
+                self._upload_training_log({
+                    "task": task_id,
+                    "device_id": formatted_device_id,
+                    "round": result_data.get("round"),
+                    "phase": result_data.get("phase", "aggregate"),
+                    "level": "INFO",
+                    "loss": loss,
+                    "accuracy": accuracy,
+                    "num_examples": num_examples,
+                    "message": f"device {device_id} result reported",
+                    "metrics": metrics if metrics else result_data
+                })
     
     def _notify_devices_task_start(self, task_data: Dict[str, Any]):
         """通知边缘设备任务开始"""
