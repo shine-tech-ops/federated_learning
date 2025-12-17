@@ -68,3 +68,14 @@ backend/.venv/*
 backend/venv/*
 regional/.reginoal/*
 regional/logs/regional.log
+frontend/dist/*
+regional/.regional_venv/*
+device/data/*
+regional/mosquitto/log/mosquitto.log
+device/logs/device_default.log
+regional/mosquitto/data/mosquitto.db
+device/models/*
+regional/parameters/*
+.gitignore
+doc-web/node_modules/*
+device/logs/*

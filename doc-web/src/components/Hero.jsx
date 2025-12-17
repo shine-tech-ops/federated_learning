@@ -54,22 +54,6 @@ export default function Hero() {
             </motion.a>
           </div>
           
-          <div className={styles.stats}>
-            <div className={styles.stat}>
-              <span className={styles.statValue}>10K+</span>
-              <span className={styles.statLabel}>GitHub Stars</span>
-            </div>
-            <div className={styles.statDivider} />
-            <div className={styles.stat}>
-              <span className={styles.statValue}>500+</span>
-              <span className={styles.statLabel}>Contributors</span>
-            </div>
-            <div className={styles.statDivider} />
-            <div className={styles.stat}>
-              <span className={styles.statValue}>1M+</span>
-              <span className={styles.statLabel}>Downloads</span>
-            </div>
-          </div>
         </motion.div>
         
         <motion.div 

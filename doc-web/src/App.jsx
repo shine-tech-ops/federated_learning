@@ -3,6 +3,7 @@ import Nav from './components/Nav'
 import Hero from './components/Hero'
 import QuickStart from './components/QuickStart'
 import Features from './components/Features'
+import TechStack from './components/TechStack'
 import Footer from './components/Footer'
 import Documentation from './components/Documentation'
 
@@ -11,8 +12,11 @@ function HomePage() {
     <>
       <main>
         <Hero />
+        <TechStack />
+
         <QuickStart />
         <Features />
+
       </main>
       <Footer />
     </>

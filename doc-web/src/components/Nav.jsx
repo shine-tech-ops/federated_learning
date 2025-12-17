@@ -31,7 +31,7 @@ export default function Nav() {
             <path d="M52 32 L36 36 L32 32 L36 28 Z" fill="#111827"/>
             <circle cx="32" cy="32" r="6" fill="#8B5CF6"/>
           </svg>
-          <span className={styles.logoText}>Flower AI</span>
+          <span className={styles.logoText}>FedAvg</span>
         </Link>
 
         {/* Desktop Links */}

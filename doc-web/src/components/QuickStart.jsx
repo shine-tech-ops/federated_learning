@@ -10,17 +10,6 @@ const steps = [
   },
   {
     step: '02',
-    title: 'Create a Client',
-    description: 'Define your federated learning client with your model.',
-    code: `import flwr as fl
-
-class FlowerClient(fl.client.NumPyClient):
-    def fit(self, parameters, config):
-        # Train your model here
-        return updated_params, num_samples, {}`,
-  },
-  {
-    step: '03',
     title: 'Start Training',
     description: 'Launch the server and connect your clients.',
     code: `# Start server
