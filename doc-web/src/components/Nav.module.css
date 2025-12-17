@@ -50,6 +50,11 @@
   color: var(--text-heading);
 }
 
+.navLink.active {
+  color: #667eea;
+  font-weight: 600;
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -100,6 +105,11 @@
   color: var(--text-body);
   text-decoration: none;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.mobileNavLink.active {
+  color: #667eea;
+  font-weight: 600;
 }
 
 .mobileGithubBtn {

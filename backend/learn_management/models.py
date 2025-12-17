@@ -96,7 +96,7 @@ class ModelVersion(models.Model):
     )
     model_info = models.ForeignKey(ModelInfo, on_delete=models.CASCADE, related_name='versions')
     version = models.CharField(max_length=100, verbose_name="版本号")
-    model_file = models.CharField(max_length=255, verbose_name="模型文件")
+    model_file = models.CharField(max_length=255, blank=True, null=True, verbose_name="模型文件")
     description = models.TextField(blank=True, null=True, verbose_name="描述")
     accuracy = models.FloatField(null=True, blank=True, verbose_name="准确率")
     loss = models.FloatField(null=True, blank=True, verbose_name="损失值")

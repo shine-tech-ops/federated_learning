@@ -153,18 +153,17 @@
       <el-form-item label="版本号">
         <el-input v-model="newVersionForm.version" placeholder="例如：v1.0.0" />
       </el-form-item>
-      <el-form-item label="模型文件">
+      <el-form-item label="模型文件（可选）">
         <el-upload
           :action="'#'"
           :http-request="customUpload"
-          :before-upload="beforeUpload"
           :limit="1"
           :on-exceed="handleExceed"
           :file-list="fileList"
-          accept=".pt,.zip,.pth,.pkl"
         >
           <el-button type="primary">点击上传</el-button>
         </el-upload>
+        <div style="margin-top: 8px; color: #909399; font-size: 12px;">不上传文件也可以创建版本</div>
       </el-form-item>
     </el-form>
     <template #footer>
@@ -445,14 +444,7 @@ const showCreateVersionDialog = () => {
   versionDialogVisible.value = true
 }
 
-// 文件上传前检查
-const beforeUpload = (file: File) => {
-  const isValid = file.type === 'application/zip' || file.name.endsWith('.pt')
-  if (!isValid) {
-    ElMessage.error('只能上传 .pt 或 zip 文件')
-  }
-  return isValid
-}
+// 文件上传前检查（已移除文件类型限制）
 
 // 上传成功回调
 const handleUploadSuccess = (response: any, file: { raw: File }) => {
@@ -491,15 +483,18 @@ const handleExceed = () => {
 const submitVersion = async () => {
   const { version, file, model_id } = newVersionForm.value
 
-  if (!version || !file || !model_id) {
-    ElMessage.warning('请填写完整信息')
+  if (!version || !model_id) {
+    ElMessage.warning('请填写版本号')
     return
   }
 
   const formData = new FormData()
   formData.append('version', version)
   formData.append('model_info', String(model_id))
-  formData.append('model_file', file as any)
+  // 只有当文件存在时才添加 model_file
+  if (file) {
+    formData.append('model_file', file as any)
+  }
 
   try {
     await modelManagementApi.createModelVersion(formData)

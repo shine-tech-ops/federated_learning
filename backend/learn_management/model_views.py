@@ -103,6 +103,10 @@ class ModelVersionView(GenericAPIView):
                 except (ValueError, TypeError):
                     pass  # 让序列化器处理错误
             
+            # 处理 model_file 为空字符串的情况，转换为 None
+            if 'model_file' in data and (not data['model_file'] or data['model_file'].strip() == ''):
+                data['model_file'] = None
+            
             data["created_by"] = request.user.id
             serializer = self.get_serializer(data=data)
             if serializer.is_valid(raise_exception=True):
@@ -234,12 +238,12 @@ class ModelFileUploadView(GenericAPIView):
 
     @swagger_auto_schema(
         operation_summary='上传模型文件',
-        operation_description='上传模型文件到存储系统（MinIO 或本地文件系统），返回文件路径用于创建模型版本。支持的文件格式：.pt, .pth, .zip, .pkl, .npz',
+        operation_description='上传模型文件到存储系统（MinIO 或本地文件系统），返回文件路径用于创建模型版本。支持任意文件类型。',
         manual_parameters=[
             openapi.Parameter(
                 'file',
                 openapi.IN_FORM,
-                description='模型文件（.pt, .pth, .zip, .pkl, .npz 格式）',
+                description='模型文件（支持任意文件类型）',
                 type=openapi.TYPE_FILE,
                 required=True
             ),
@@ -296,14 +300,7 @@ class ModelFileUploadView(GenericAPIView):
                     "data": None
                 })
             
-            # 验证文件类型
-            file_ext = os.path.splitext(file.name)[1].lower()
-            if file_ext not in ['.pt', '.zip', '.pth', '.pkl', '.npz']:
-                return Response({
-                    "code": status.HTTP_400_BAD_REQUEST,
-                    "msg": "不支持的文件类型，仅支持 .pt, .pth, .zip, .pkl, .npz 格式",
-                    "data": None
-                })
+            # 不再限制文件类型，支持任意文件类型
             
             # 生成文件名（固定使用 models 目录）
             timestamp = int(time.time() * 1000)  # 毫秒级时间戳

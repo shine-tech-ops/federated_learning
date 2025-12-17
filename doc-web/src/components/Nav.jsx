@@ -1,16 +1,17 @@
 import { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import styles from './Nav.module.css'
 
 const navLinks = [
-  { label: 'Docs', href: '#docs' },
-  { label: 'Tutorial', href: '#tutorial' },
+  { label: 'Home', href: '/' },
+  { label: 'Docs', href: '/docs' },
   { label: 'Examples', href: '#examples' },
-  { label: 'Blog', href: '#blog' },
 ]
 
 export default function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const location = useLocation()
 
   return (
     <motion.nav 
@@ -21,7 +22,7 @@ export default function Nav() {
     >
       <div className={styles.container}>
         {/* Logo */}
-        <a href="/" className={styles.logo}>
+        <Link to="/" className={styles.logo}>
           <svg viewBox="0 0 64 64" width="40" height="40">
             <circle cx="32" cy="32" r="28" fill="#FFC107"/>
             <path d="M32 12 L36 28 L32 32 L28 28 Z" fill="#111827"/>
@@ -31,14 +32,24 @@ export default function Nav() {
             <circle cx="32" cy="32" r="6" fill="#8B5CF6"/>
           </svg>
           <span className={styles.logoText}>Flower AI</span>
-        </a>
+        </Link>
 
         {/* Desktop Links */}
         <div className={styles.desktopLinks}>
           {navLinks.map((link) => (
-            <a key={link.label} href={link.href} className={styles.navLink}>
-              {link.label}
-            </a>
+            link.href.startsWith('#') ? (
+              <a key={link.label} href={link.href} className={styles.navLink}>
+                {link.label}
+              </a>
+            ) : (
+              <Link 
+                key={link.label} 
+                to={link.href} 
+                className={`${styles.navLink} ${location.pathname === link.href ? styles.active : ''}`}
+              >
+                {link.label}
+              </Link>
+            )
           ))}
         </div>
 
@@ -84,14 +95,25 @@ export default function Nav() {
             transition={{ duration: 0.2 }}
           >
             {navLinks.map((link) => (
-              <a 
-                key={link.label} 
-                href={link.href} 
-                className={styles.mobileNavLink}
-                onClick={() => setMobileOpen(false)}
-              >
-                {link.label}
-              </a>
+              link.href.startsWith('#') ? (
+                <a 
+                  key={link.label} 
+                  href={link.href} 
+                  className={styles.mobileNavLink}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {link.label}
+                </a>
+              ) : (
+                <Link 
+                  key={link.label} 
+                  to={link.href} 
+                  className={`${styles.mobileNavLink} ${location.pathname === link.href ? styles.active : ''}`}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              )
             ))}
             <a 
               href="https://github.com/adap/flower" 
