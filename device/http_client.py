@@ -1,12 +1,11 @@
 """
 设备端 HTTP 客户端 - 用于向中央服务器发送心跳
 """
-
 import requests
-import json
-import time
 from loguru import logger
 from typing import Dict, Any, Optional, Union
+from datetime import datetime
+from utils import Utils
 
 
 class HTTPClient:
@@ -46,6 +45,16 @@ class HTTPClient:
             result = response.json()
             if result.get('code') == 200:
                 logger.debug(f"设备 {device_id} 心跳发送成功")
+                utils = Utils()
+                device_info = utils.get_device_info()
+                if device_info['device']['status'] != "online":
+                    utils.update_device_info(
+                        device={"status": "online"},
+                    )
+                else:
+                    utils.update_device_info(
+                        device={"timestamp": int(datetime.now().timestamp())},
+                    )
                 return True
             else:
                 logger.warning(f"设备 {device_id} 心跳发送失败: {result.get('msg')}")
@@ -84,4 +93,12 @@ class HTTPClient:
     def close(self):
         """关闭 HTTP 客户端"""
         self.session.close()
+
+        utils = Utils()
+        utils.update_device_info(
+            device={
+                "status": "offline",
+                "timestamp": int(datetime.now().timestamp())
+            },
+        )
 

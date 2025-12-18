@@ -1,12 +1,10 @@
 # 核心依赖
-torch==2.0.1
-torchvision==0.15.2
-flwr==1.8.0
+torch==2.9.1
+torchvision==0.24.1
+flwr==1.23.0
 paho-mqtt==2.1.0
-numpy==1.24.3
-loguru==0.7.2
-requests==2.31.0
+numpy==2.3.5
+loguru==0.7.3
+requests==2.32.5
+matplotlib==3.10.7
 python-dotenv==1.0.1
-
-# 数据处理
-Pillow==10.0.0

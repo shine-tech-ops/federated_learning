@@ -4,12 +4,12 @@
 模拟联邦学习客户端
 """
 
-import json
 import time
 import threading
 import sys
 import os
 from loguru import logger
+from utils import Utils
 
 # 添加共享模块路径
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'shared'))
@@ -18,7 +18,6 @@ from mqtt_handler import MQTTHandler
 from flower_client import FlowerClient
 from mnist_trainer import MNISTTrainer
 from http_client import HTTPClient
-from config import config
 
 trainer_class = {
     "cnn": MNISTTrainer,
@@ -110,7 +109,25 @@ class EdgeDevice:
             if not flower_server:
                 logger.error("缺少 Flower 服务器信息")
                 return
-            
+
+            # 更新传递数据
+            model_info = message.get('model_info', {})
+            model_version = message.get('model_version', {})
+            device_info = message.get('device_info', {})
+            utils = Utils()
+            utils.update_device_info(
+                task={'id': message.get('task_id', None), 'name': message.get('task_name', None)},
+                model={'id': model_info['id'], 'name': model_info['name'], 'description': model_info['description'], 'file': model_version['model_file']},
+                train={
+                    "index": 0,
+                    "round": message.get('rounds', 0),
+                    "aggregation_method": message.get('aggregation_method', None),
+                    "progress": 0,
+                },
+                device={'description': device_info['description']},
+                flower_server=flower_server,
+            )
+
             # 创建训练器
             self.trainer = MNISTTrainer(
                 device_id=self.device_id,
@@ -286,6 +303,7 @@ class EdgeDevice:
 
 if __name__ == "__main__":
     # 设备ID、区域ID、中央服务器地址可通过命令行覆盖配置文件
+    config = Utils.load_config()
     device_id = sys.argv[1] if len(sys.argv) > 1 else config.device_id
     region_id = int(sys.argv[2]) if len(sys.argv) > 2 else int(config.region_id)
     central_server_url = sys.argv[3] if len(sys.argv) > 3 else config.http['base_url']
@@ -309,8 +327,17 @@ if __name__ == "__main__":
         **config.http,
         'base_url': central_server_url,
     }
-    
-    # 启动设备
-    device = EdgeDevice(device_id, mqtt_config, http_config, heartbeat_interval=config.heartbeat_interval)
-    device.region_id = region_id  # 设置区域节点ID
-    device.start()
+
+    # 初始化工具类
+    initialize_utils = Utils()
+    success, msg = initialize_utils.update_device_info(
+        device={"id": device_id},
+        region={"id": region_id},
+    )
+    if not success:
+        print("警告：更新失败，请检查工具类是否有误，设备启动已终止！")
+    else:
+        # 启动设备
+        device = EdgeDevice(device_id, mqtt_config, http_config, heartbeat_interval=config.heartbeat_interval)
+        device.region_id = region_id  # 设置区域节点ID
+        device.start()

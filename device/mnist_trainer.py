@@ -12,6 +12,7 @@ import numpy as np
 from loguru import logger
 from typing import List, Tuple, Dict, Any
 
+from utils import Utils
 from mnist_model import create_model, get_model_parameters, set_model_parameters
 
 
@@ -26,7 +27,9 @@ class MNISTTrainer:
         self.test_loader = None
         self.optimizer = None
         self.criterion = nn.CrossEntropyLoss()
-        
+        self.current_round = 0
+        self.total_rounds = 0
+
         # 设置设备
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"设备 {device_id} 使用计算设备: {self.device}")
@@ -90,13 +93,13 @@ class MNISTTrainer:
         
         if device_hash == 0:
             # 设备1：数字 0, 1, 2
-            target_classes = [0, 1, 2]
+            target_classes = [0, 1, 2, 3, 4]
         elif device_hash == 1:
             # 设备2：数字 3, 4, 5
-            target_classes = [3, 4, 5]
+            target_classes = [3, 4, 5, 6, 7]
         else:
             # 设备3：数字 6, 7, 8, 9
-            target_classes = [6, 7, 8, 9]
+            target_classes = [5, 6, 7, 8, 9]
         
         # 获取目标类别的数据索引
         indices = []
@@ -133,6 +136,23 @@ class MNISTTrainer:
         try:
             # 设置模型参数
             self.set_parameters(parameters)
+
+            # 当前联邦学习轮次
+            utils = Utils()
+            device_info = utils.get_device_info()
+            self.current_round = device_info['train']['index'] + 1
+            self.total_rounds = device_info['train']['round']
+            if self.total_rounds > 0:
+                utils.update_device_info(train={
+                    'index': self.current_round,
+                    'round': self.total_rounds,
+                    'progress': (self.current_round / self.total_rounds) * 100
+                })
+            else:
+                utils.update_device_info(train={
+                    'index': self.current_round,
+                    'round': self.total_rounds,
+                })
 
             # 设置优化器
             self.optimizer = optim.SGD(self.model.parameters(), lr=0.01, momentum=0.9)
@@ -201,6 +221,17 @@ class MNISTTrainer:
         accuracy = correct / total
         loss = test_loss / len(self.test_loader)
 
+        utils = Utils()
+        utils.update_device_info(
+            train={
+                'accuracy': accuracy,
+                'loss': loss,
+                'correct': correct,
+                'total': total,
+                'progress': (self.current_round / self.total_rounds) * 100
+            }
+        )
+
         return {
             'accuracy': accuracy,
             'loss': loss,
@@ -238,6 +269,7 @@ class MNISTTrainer:
                 # 使用 pickle 保存 NumPy 数组
                 import pickle
                 with open(file_path, 'wb') as f:
+                    # noinspection PyTypeChecker
                     pickle.dump(model_data, f)
                 logger.info(f"模型参数已保存到: {file_path}")
             else:

@@ -28,9 +28,7 @@ class Config:
 
     def __init__(self) -> None:
         # 设备与区域信息
-        self.device_id = self._get_env("DEVICE_ID", "123")
-        # self.device_id = self._get_env("DEVICE_ID", "device_001")
-
+        self.device_id = self._get_env("DEVICE_ID", "device_001")
         self.region_id = int(self._get_env("REGION_ID", "3"))
 
         # MQTT 配置
@@ -61,7 +59,13 @@ class Config:
             "max_size": self._get_env("LOG_MAX_SIZE", "10 MB"),
         }
 
-    def _get_env(self, key: str, default: str) -> str:
+        # 目录设置
+        self.directory: Dict[str, Any] = {
+            "termux_home": self._get_env("TERMUX_HOME", "/data/data/com.termux/files/home"),
+        }
+
+    @staticmethod
+    def _get_env(key: str, default: str) -> str:
         """读取环境变量"""
         return os.environ.get(key, default)
 
@@ -74,6 +78,7 @@ class Config:
             "http": self.http,
             "heartbeat_interval": self.heartbeat_interval,
             "logging": self.logging,
+            "directory": self.directory,
         }
 
 
