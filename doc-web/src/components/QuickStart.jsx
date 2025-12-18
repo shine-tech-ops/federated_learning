@@ -4,19 +4,42 @@ import styles from './QuickStart.module.css'
 const steps = [
   {
     step: '01',
-    title: 'Install',
-    description: 'Install via pip with a single command.',
-    code: 'pip install flwr',
+    title: 'Deploy Central Server',
+    description: 'Start the central server and all infrastructure services with Docker.',
+    code: `# Load Docker images
+docker load -i images.tar
+
+# Start all services
+docker-compose up -d
+
+# Access frontend at http://localhost:8086`,
   },
   {
     step: '02',
-    title: 'Quick Run In Single Node',
-    description: 'Launch the server and connect your clients.',
-    code: `# Start server
-fl.server.start_server(config=fl.server.ServerConfig(num_rounds=3))
+    title: 'Start Regional Node',
+    description: 'Deploy regional node to connect central server and edge devices.',
+    code: `cd regional
+pip install -r requirements.txt
 
-# Start client
-fl.client.start_client(server_address="localhost:8080", client=FlowerClient())`,
+# Configure environment
+export REGION_ID=region-001
+export RABBITMQ_HOST=localhost
+export MQTT_BROKER_HOST=localhost
+
+# Start regional node
+python run.py`,
+  },
+  {
+    step: '03',
+    title: 'Connect Edge Devices',
+    description: 'Launch edge devices to participate in federated learning.',
+    code: `cd device
+pip install -r requirements.txt
+
+# Start device with ID and region
+python start_device.py device_001 3 http://localhost:8085
+
+# Device will automatically connect and wait for tasks`,
   },
 ]
 
@@ -34,8 +57,8 @@ export default function QuickStart() {
           <span className={styles.label}>Quick Start</span>
           <h2 className={styles.title}>Up and running in minutes</h2>
           <p className={styles.subtitle}>
-            Get started with federated learning in just three simple steps. 
-            No complex setup required.
+            Deploy a complete federated learning system with central server, 
+            regional nodes, and edge devices in three steps.
           </p>
         </motion.div>
         
