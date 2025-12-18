@@ -67,7 +67,7 @@ export default function Hero() {
               <span className={styles.dot} style={{ background: '#FF5F56' }} />
               <span className={styles.dot} style={{ background: '#FFBD2E' }} />
               <span className={styles.dot} style={{ background: '#27C93F' }} />
-              <span className={styles.codeTitle}>quickstart.py</span>
+              <span className={styles.codeTitle}>device_example.py</span>
             </div>
             <pre className={styles.code}>
               <code>{`from device import EdgeDevice
