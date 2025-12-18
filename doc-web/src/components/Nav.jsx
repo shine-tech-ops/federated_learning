@@ -7,6 +7,7 @@ const navLinks = [
   { label: 'Home', href: '/' },
   { label: 'Docs', href: '/docs' },
   { label: 'Examples', href: '/examples' },
+  { label: 'Edge Device Docs', href: '/device'}
 ]
 
 export default function Nav() {

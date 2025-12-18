@@ -924,7 +924,8 @@ export default function Documentation() {
     { id: 'deployment', title: 'Deployment', icon: '🚀' },
     { id: 'development', title: 'Development', icon: '💻' },
     { id: 'adding-models', title: 'Adding Models', icon: '🤖' },
-    { id: 'federated-learning-system', title: 'FL Core', icon: '🔬' }
+    { id: 'federated-learning-system', title: 'FL Core', icon: '🔬' },
+
   ]
 
   return (
