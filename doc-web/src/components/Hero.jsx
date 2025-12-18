@@ -21,7 +21,7 @@ export default function Hero() {
           </motion.span>
           
           <h1 className={styles.title}>
-            Build <span className={styles.highlight}>Federated AI</span> with Flower
+            Learn Local <span className={styles.highlight}>Evolve Global</span> 
           </h1>
           
           <p className={styles.subtitle}>

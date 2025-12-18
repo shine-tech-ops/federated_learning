@@ -6,7 +6,7 @@ import styles from './Nav.module.css'
 const navLinks = [
   { label: 'Home', href: '/' },
   { label: 'Docs', href: '/docs' },
-  { label: 'Examples', href: '#examples' },
+  { label: 'Examples', href: '/examples' },
 ]
 
 export default function Nav() {
@@ -39,19 +39,13 @@ export default function Nav() {
           {/* Desktop Links */}
           <div className={styles.desktopLinks}>
             {navLinks.map((link) => (
-              link.href.startsWith('#') ? (
-                <a key={link.label} href={link.href} className={styles.navLink}>
-                  {link.label}
-                </a>
-              ) : (
-                <Link 
-                  key={link.label} 
-                  to={link.href} 
-                  className={`${styles.navLink} ${location.pathname === link.href ? styles.active : ''}`}
-                >
-                  {link.label}
-                </Link>
-              )
+              <Link 
+                key={link.label} 
+                to={link.href} 
+                className={`${styles.navLink} ${location.pathname === link.href || location.pathname.startsWith(link.href + '/') ? styles.active : ''}`}
+              >
+                {link.label}
+              </Link>
             ))}
           </div>
 
@@ -98,25 +92,14 @@ export default function Nav() {
             transition={{ duration: 0.2 }}
           >
             {navLinks.map((link) => (
-              link.href.startsWith('#') ? (
-                <a 
-                  key={link.label} 
-                  href={link.href} 
-                  className={styles.mobileNavLink}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {link.label}
-                </a>
-              ) : (
-                <Link 
-                  key={link.label} 
-                  to={link.href} 
-                  className={`${styles.mobileNavLink} ${location.pathname === link.href ? styles.active : ''}`}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              )
+              <Link 
+                key={link.label} 
+                to={link.href} 
+                className={`${styles.mobileNavLink} ${location.pathname === link.href || location.pathname.startsWith(link.href + '/') ? styles.active : ''}`}
+                onClick={() => setMobileOpen(false)}
+              >
+                {link.label}
+              </Link>
             ))}
             <a 
               href="https://github.com/adap/flower" 

@@ -6,6 +6,7 @@ import Features from './components/Features'
 import TechStack from './components/TechStack'
 import Footer from './components/Footer'
 import Documentation from './components/Documentation'
+import Examples from './components/Examples'
 
 function HomePage() {
   return (
@@ -31,6 +32,8 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/docs" element={<Documentation />} />
         <Route path="/docs/:docId" element={<Documentation />} />
+        <Route path="/examples" element={<Examples />} />
+        <Route path="/examples/:exampleId" element={<Examples />} />
       </Routes>
     </Router>
   )
