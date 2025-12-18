@@ -7,6 +7,7 @@ import TechStack from './components/TechStack'
 import Footer from './components/Footer'
 import Documentation from './components/Documentation'
 import Examples from './components/Examples'
+import EdgeDeviceDocumentation from "./components/EdgeDeviceDocumentation.jsx";
 
 function HomePage() {
   return (
@@ -34,6 +35,8 @@ export default function App() {
         <Route path="/docs/:docId" element={<Documentation />} />
         <Route path="/examples" element={<Examples />} />
         <Route path="/examples/:exampleId" element={<Examples />} />
+        <Route path="/device" element={<EdgeDeviceDocumentation />} />
+        <Route path="/device/:docId" element={<EdgeDeviceDocumentation />} />
       </Routes>
     </Router>
   )
