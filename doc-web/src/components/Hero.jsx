@@ -25,8 +25,8 @@ export default function Hero() {
           </h1>
           
           <p className={styles.subtitle}>
-            A friendly federated learning framework. Train AI models collaboratively 
-            across decentralized data while keeping data private and secure.
+            Empower distributed intelligence. Train models locally on edge devices, 
+            aggregate insights globally—without ever sharing raw data.
           </p>
           
           <div className={styles.actions}>
@@ -43,7 +43,7 @@ export default function Hero() {
             </motion.a>
             
             <motion.a 
-              href="https://github.com/adap/flower" 
+              href="https://gitlab.osvie.com/shinetechzz/federated_learning" 
               target="_blank"
               rel="noopener noreferrer"
               className={styles.secondaryBtn}
@@ -67,26 +67,28 @@ export default function Hero() {
               <span className={styles.dot} style={{ background: '#FF5F56' }} />
               <span className={styles.dot} style={{ background: '#FFBD2E' }} />
               <span className={styles.dot} style={{ background: '#27C93F' }} />
-              <span className={styles.codeTitle}>quickstart.py</span>
+              <span className={styles.codeTitle}>device_example.py</span>
             </div>
             <pre className={styles.code}>
-              <code>{`import flwr as fl
+              <code>{`from device import EdgeDevice
 
-# Define your Flower client
-class FlowerClient(fl.client.NumPyClient):
-    def get_parameters(self, config):
-        return model.get_weights()
-    
-    def fit(self, parameters, config):
-        model.set_weights(parameters)
-        model.fit(x_train, y_train)
-        return model.get_weights(), len(x_train), {}
+# Initialize edge device
+device = EdgeDevice(
+    device_id="device_001",
+    mqtt_config={
+        "host": "localhost",
+        "port": 1883
+    }
+)
 
-# Start Flower client
-fl.client.start_client(
-    server_address="localhost:8080",
-    client=FlowerClient()
-)`}</code>
+# Start federated learning
+device.start()
+
+# Device automatically:
+# - Connects to region node
+# - Receives training tasks
+# - Trains model locally
+# - Reports metrics globally`}</code>
             </pre>
           </div>
           

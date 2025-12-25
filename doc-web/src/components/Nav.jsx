@@ -53,7 +53,7 @@ export default function Nav() {
           {/* Desktop Actions */}
           <div className={styles.actions}>
             <a 
-              href="https://github.com/adap/flower" 
+              href="https://gitlab.osvie.com/shinetechzz/federated_learning" 
               target="_blank" 
               rel="noopener noreferrer"
               className={styles.githubBtn}
@@ -103,7 +103,7 @@ export default function Nav() {
               </Link>
             ))}
             <a 
-              href="https://github.com/adap/flower" 
+              href="https://gitlab.osvie.com/shinetechzz/federated_learning" 
               target="_blank" 
               rel="noopener noreferrer"
               className={styles.mobileGithubBtn}
