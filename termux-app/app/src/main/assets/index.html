@@ -1,0 +1,47 @@
+﻿<!DOCTYPE html>
+<html lang="cn">
+<head>
+    <title>WebView交互示例</title>
+    <style>
+        body { background-color: white; }
+    </style>
+</head>
+<body>
+<button onclick="callAndroidMethod()">调用Android方法</button>
+<button onclick="getDeviceInfo()">获取设备信息</button>
+<button onclick="testAlert()">测试ALERT</button>
+<button onclick="closeWindow()">测试ALERT</button>
+
+
+<p id="alert">---</p>
+
+<script>
+    function callAndroidMethod() {
+        if (typeof Android !== 'undefined') {
+            Android.showToast('Hello from JavaScript!');
+        }
+    }
+
+    function getDeviceInfo() {
+        if (typeof Android !== 'undefined') {
+            Android.getDeviceInfo();
+        }
+    }
+
+    function testAlert() {
+        document.querySelector("#alert").innerHTML = "TEST ALERT";
+    }
+
+    function closeWindow() {
+        Android.closeWindow();
+    }
+
+    // Android回调的方法
+    function onDeviceInfoReceived(info) {
+        console.log(info);
+        window.alert(info);
+        alert('设备信息: ' + info);
+    }
+</script>
+</body>
+</html>
