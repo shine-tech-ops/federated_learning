@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { marked } from 'marked'
 import styles from './Documentation.module.css'
+import ArchitectureDiagram from './ArchitectureDiagram'
 
 // Documentation content mapping
 const docs = {
@@ -43,13 +44,7 @@ For questions, please check the relevant documentation or submit an Issue.
 
 ## Architecture Overview
 
-\`\`\`
-Central Server (Backend)
-    ↓ RabbitMQ
-Regional Node
-    ↓ MQTT
-Edge Devices
-\`\`\`
+The system uses a three-tier hierarchical architecture for efficient federated learning task management.
 
 ## Core Components
 
@@ -153,7 +148,7 @@ Edge Devices
 
 ### Aggregation Algorithms
 
-- **FedAvg**: Simple average aggregation
+- **Fed-Evo**: Simple average aggregation
 - **Weighted Aggregation**: Weighted by data size
 - **Custom Aggregation**: Extensible
 
@@ -635,7 +630,7 @@ The model addition process involves multiple components:
    - **Model**: Select deployed model version
    - **Regional Node**: Select target regional node
    - **Rounds**: Number of training rounds
-   - **Aggregation Method**: e.g., "fedavg"
+   - **Aggregation Method**: e.g., "Fed-Evo"
    - **Participation Rate**: Percentage of devices to participate
 
 ### 3.2 Task Distribution to Regional Node
@@ -753,8 +748,8 @@ if len(client_updates) >= MIN_CLIENTS:
 ### Custom Aggregation Algorithms
 
 \`\`\`python
-# 1. Simple Average Aggregation (FedAvg)
-def fedavg_aggregation(client_models):
+# 1. Simple Average Aggregation (Fed-Evo)
+def Fed-Evo_aggregation(client_models):
     averaged_model = copy.deepcopy(client_models[0])
     for key in averaged_model.keys():
         for i in range(1, len(client_models)):
@@ -905,15 +900,20 @@ export default function Documentation() {
     setCurrentDoc(docKey)
     
     if (docs[docKey]) {
-      // Configure marked options
+      // Configure marked options to allow HTML
       marked.setOptions({
         breaks: true,
         gfm: true,
         headerIds: true,
-        mangle: false
+        mangle: false,
+        sanitize: false  // Allow HTML/SVG rendering
       })
-      
-      const html = marked(docs[docKey].content)
+
+      // Use marked.parse() instead of marked() for better HTML support
+      const html = marked.parse(docs[docKey].content, {
+        sanitize: false,
+        gfm: true
+      })
       setHtmlContent(html)
     }
   }, [docId])
@@ -950,10 +950,21 @@ export default function Documentation() {
       
       <main className={styles.content}>
         <div className={styles.contentWrapper}>
-          <article 
-            className={styles.markdown}
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
-          />
+          {currentDoc === 'architecture' ? (
+            <article className={styles.markdown}>
+              <h1>System Architecture</h1>
+              <h2>Architecture Overview</h2>
+              <ArchitectureDiagram />
+              <div dangerouslySetInnerHTML={{
+                __html: htmlContent.replace(/<h1>.*?<\/h1>/, '').replace(/<h2>Architecture Overview<\/h2>/, '').replace(/<div style=.*?<\/div>/, '')
+              }} />
+            </article>
+          ) : (
+            <article
+              className={styles.markdown}
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+            />
+          )}
         </div>
       </main>
     </div>

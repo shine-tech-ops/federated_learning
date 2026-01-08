@@ -37,7 +37,7 @@ export default function Footer() {
                 <path d="M52 32 L36 36 L32 32 L36 28 Z" fill="#111827"/>
                 <circle cx="32" cy="32" r="6" fill="#8B5CF6"/>
               </svg>
-              <span>FedAvg</span>
+              <span>Fed-Evo</span>
             </a>
             <p className={styles.tagline}>
               A friendly federated learning framework for everyone.

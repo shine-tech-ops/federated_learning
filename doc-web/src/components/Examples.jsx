@@ -7,933 +7,700 @@ import styles from './Documentation.module.css'
 const examples = {
   'cnn-training': {
     title: 'Federated CNN Training',
-    content: `# Feature 1: Federated CNN Training
+    content: `# Feature 1: Federated CNN Training 
 
 ## Overview
 
-Federated CNN training enables multiple clients to collaboratively train a convolutional neural network without sharing raw data. Each client trains locally on their data, and the central server aggregates model updates until convergence.
-
-## Key Components
-
-- **Client-side**: Local data management, model training, parameter updates
-- **Server-side**: Model aggregation, convergence monitoring, global model distribution
-- **Validation**: MNIST dataset for proof of concept
+Based on the **Fed-Evo** framework, this feature implements a hierarchical federated learning system for MNIST handwritten digit recognition. The architecture consists of a central management server, regional aggregation nodes, and edge devices.
 
 ## Architecture Flow
 
+The system uses a three-tier architecture to manage federated learning tasks efficiently:
+
 \`\`\`
-┌─────────────────┐
-│  Central Server │
-│   (Aggregator)  │
-└────────┬────────┘
-         │ Global Model
-    ┌────┴────┬────────┬────────┐
-    │         │        │        │
-┌───▼───┐ ┌──▼───┐ ┌──▼───┐ ┌──▼───┐
-│Client1│ │Client2│ │Client3│ │Client4│
-│ CNN   │ │ CNN   │ │ CNN   │ │ CNN   │
-└───┬───┘ └──┬───┘ └──┬───┘ └──┬───┘
-    │        │        │        │
-    └────────┴────────┴────────┘
-      Local Model Updates
+      ┌─────────────────┐
+      │  Center Server  │
+      │(Task Management)│
+      └────────┬────────┘
+               │ rabbitMQ
+               ▼
+      ┌─────────────────┐
+      │ Regional Node   │
+      │ (fed Server) │◄──────┐
+      └────────┬────────┘       │
+               │MQTT     │ Aggregation
+      ┌────────┴────────┐       │
+      │                 │       │
+┌─────▼─────┐     ┌─────▼─────┐ │
+│  Device 1 │     │  Device 2 │ │
+│(Flower Cl)│     │(Flower Cl)│ │
+└───────────┘     └───────────┘
 \`\`\`
+
+## Key Components
+
+- **Center Server**: Manages global tasks and coordinates regional nodes.
+- **Regional Node (\`regional/\`)**: Runs the **Flower Server**, manages the \`Fed-Evo\` strategy, and aggregates updates from connected devices.
+- **Edge Device (\`device/\`)**: Runs the **Flower Client**, performs local training using \`MNISTTrainer\`, and uploads model updates.
+- **Shared Model (\`shared/\`)**: Standard CNN definition used across all nodes.
 
 ## Implementation Details
 
-### 1. Client-Side Implementation
+### 1. Shared Model Architecture
+Defined in \`shared/mnist_model.py\`:
 
-**Local Data Management**:
 \`\`\`python
-class FederatedCNNClient:
-    def __init__(self, client_id, data_path):
-        self.client_id = client_id
-        self.model = self.build_cnn_model()
-        self.local_data = self.load_local_data(data_path)
+class SimpleCNN(nn.Module):
+    def __init__(self, num_classes=10):
+        super(SimpleCNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.fc1 = nn.Linear(64 * 7 * 7, 128)
+        self.fc2 = nn.Linear(128, num_classes)
+        self.dropout = nn.Dropout(0.5)
+\`\`\`
+
+### 2. Client-Side Implementation
+
+**Flower Client Wrapper (\`device/flower_client.py\`)**:
+\`\`\`python
+class FlowerClient(fl.client.NumPyClient):
+    def __init__(self, device_id, trainer, server_address, ...):
+        self.trainer = trainer  # Instance of MNISTTrainer
         
-    def load_local_data(self, data_path):
-        """Load and preprocess local MNIST data"""
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-        ])
-        
-        # Load local partition of MNIST
-        dataset = datasets.MNIST(
-            data_path, 
-            train=True, 
-            download=True,
-            transform=transform
-        )
-        
-        # Create data loader
-        return DataLoader(
-            dataset, 
-            batch_size=32, 
-            shuffle=True
-        )
-    
-    def build_cnn_model(self):
-        """Build CNN architecture"""
-        return nn.Sequential(
-            nn.Conv2d(1, 32, 3, 1),
-            nn.ReLU(),
-            nn.Conv2d(32, 64, 3, 1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Dropout(0.25),
-            nn.Flatten(),
-            nn.Linear(9216, 128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 10)
-        )
-    
-    def local_train(self, epochs=1):
-        """Execute local training"""
+    def fit(self, parameters, config):
+        """Receive global parameters, train locally, return updates"""
+        # Train using local trainer
+        updated_params, num_examples, metrics = self.trainer.fit(parameters, config)
+        return updated_params, num_examples, metrics
+
+    def evaluate(self, parameters, config):
+        """Evaluate global parameters on local data"""
+        loss, num_examples, metrics = self.trainer.evaluate(parameters, config)
+        return loss, num_examples, metrics
+\`\`\`
+
+**Local Trainer (\`device/mnist_trainer.py\`)**:
+\`\`\`python
+class MNISTTrainer:
+    def fit(self, parameters, config):
+        self.set_parameters(parameters)
         self.model.train()
-        optimizer = optim.Adam(self.model.parameters(), lr=0.001)
-        criterion = nn.CrossEntropyLoss()
-        
-        for epoch in range(epochs):
-            for batch_idx, (data, target) in enumerate(self.local_data):
-                optimizer.zero_grad()
+        # Local training loop (Standard PyTorch)
+        for epoch in range(3):
+            for data, target in self.train_loader:
+                self.optimizer.zero_grad()
                 output = self.model(data)
-                loss = criterion(output, target)
+                loss = self.criterion(output, target)
                 loss.backward()
-                optimizer.step()
-                
-        return self.model.state_dict()
+                self.optimizer.step()
+        return self.get_parameters(), len(self.train_loader.dataset), metrics
 \`\`\`
 
-### 2. Server-Side Aggregation
+### 3. Regional Server Aggregation
 
-**FedAvg Algorithm**:
+Managed by \`FedServerManager\` in \`regional/app/fed/server_manager.py\`. It uses Flower's built-in strategies.
+
 \`\`\`python
-class FederatedServer:
-    def __init__(self, num_clients):
-        self.global_model = self.build_cnn_model()
-        self.num_clients = num_clients
-        self.convergence_threshold = 0.01
-        
-    def aggregate_models(self, client_models, client_weights):
-        """
-        Aggregate client models using weighted averaging
-        
-        Args:
-            client_models: List of client model state dicts
-            client_weights: List of weights (e.g., data sizes)
-        """
-        global_dict = self.global_model.state_dict()
-        
-        # Weighted average of all parameters
-        for key in global_dict.keys():
-            global_dict[key] = torch.zeros_like(global_dict[key])
-            total_weight = sum(client_weights)
-            
-            for client_model, weight in zip(client_models, client_weights):
-                global_dict[key] += client_model[key] * (weight / total_weight)
-        
-        self.global_model.load_state_dict(global_dict)
-        return self.global_model.state_dict()
+def _run_server(self):
+    # Configure Strategy (Fed-Evo)
+    strategy = fl.server.strategy.Fed-Evo(
+        fraction_fit=1.0,        # Sample 100% of available clients
+        min_fit_clients=1,       # Minimum clients to train
+        min_evaluate_clients=1,  # Minimum clients to evaluate
+        evaluate_fn=self._evaluate_fn,
+    )
     
-    def check_convergence(self, prev_loss, current_loss):
-        """Check if model has converged"""
-        return abs(prev_loss - current_loss) < self.convergence_threshold
+    # Start Flower Server
+    fl.server.start_server(
+        server_address=f"0.0.0.0:8080",
+        config=fl.server.ServerConfig(num_rounds=10),
+        strategy=strategy
+    )
 \`\`\`
 
-### 3. Training Loop
+## How to Run
 
-\`\`\`python
-def federated_cnn_training(server, clients, num_rounds=10):
-    """
-    Main federated learning training loop
-    
-    Args:
-        server: FederatedServer instance
-        clients: List of FederatedCNNClient instances
-        num_rounds: Number of federated learning rounds
-    """
-    for round_num in range(num_rounds):
-        print(f"\\n=== Round {round_num + 1}/{num_rounds} ===")
-        
-        # 1. Distribute global model to clients
-        global_weights = server.global_model.state_dict()
-        for client in clients:
-            client.model.load_state_dict(global_weights)
-        
-        # 2. Each client trains locally
-        client_updates = []
-        client_weights = []
-        
-        for client in clients:
-            print(f"Client {client.client_id} training...")
-            local_weights = client.local_train(epochs=1)
-            client_updates.append(local_weights)
-            client_weights.append(len(client.local_data.dataset))
-        
-        # 3. Server aggregates updates
-        print("Aggregating models...")
-        server.aggregate_models(client_updates, client_weights)
-        
-        # 4. Evaluate global model
-        accuracy = evaluate_model(server.global_model, test_loader)
-        print(f"Global Model Accuracy: {accuracy:.2%}")
-        
-        # 5. Check convergence
-        if round_num > 0 and server.check_convergence(prev_acc, accuracy):
-            print("Model converged!")
-            break
-        prev_acc = accuracy
-\`\`\`
+1. **Start the Regional Node**:
+   The regional server waits for task distribution from the center or manual start.
+   \`\`\`bash
+   python regional/main.py
+   \`\`\`
 
-## MNIST Validation Example
-
-\`\`\`python
-# Setup
-num_clients = 4
-num_rounds = 10
-
-# Initialize server and clients
-server = FederatedServer(num_clients=num_clients)
-clients = [
-    FederatedCNNClient(client_id=i, data_path=f'./data/client_{i}')
-    for i in range(num_clients)
-]
-
-# Run federated training
-federated_cnn_training(server, clients, num_rounds=num_rounds)
-\`\`\`
-
-## Customizable Aggregation Methods
-
-The system supports multiple aggregation algorithms:
-
-1. **FedAvg**: Simple weighted average
-2. **FedProx**: Proximal term for handling heterogeneous data
-3. **FedOpt**: Server-side adaptive optimization
-4. **Custom**: User-defined aggregation logic
+2. **Start Edge Devices**:
+   Start multiple devices to connect to the regional node.
+   \`\`\`bash
+   # Start a device with ID 'dev1'
+   python device/main.py --device_id dev1 --server_address localhost:8080
+   
+   # Start another device
+   python device/main.py --device_id dev2 --server_address localhost:8080
+   \`\`\`
 
 ## Key Features
 
-- ✅ Local data management on each client
-- ✅ Model management with version control
-- ✅ Multiple aggregation algorithms
-- ✅ MNIST dataset validation
-- ✅ Convergence monitoring
-- ✅ Privacy-preserving (no raw data sharing)
+- ✅ **Hierarchical Architecture**: Center -> Regional -> Device.
+- ✅ **Flower Framework**: Robust FL communication via gRPC.
+- ✅ **Data Privacy**: Raw data stays on device; only model weights are transmitted.
+- ✅ **Heterogeneity**: Supports custom data partitioning logic in \`MNISTTrainer\`.
 `
   },
   'optimization': {
     title: 'Federated Optimization',
-    content: `# Feature 2: Federated Optimization
+    content: `# Feature 2: Federated Surrogate Optimization
 
 ## Overview
 
-Federated optimization trains surrogate models on each client to find optimal solutions. The server aggregates these models and uses a selection function to identify the best solution, which is then distributed back to clients for incorporation into their local training.
-
-## Key Differences from CNN Training
-
-- **Model Type**: Surrogate models instead of CNN
-- **Optimization Goal**: Finding optimal solutions rather than model convergence
-- **Selection Mechanism**: Best solution selection after aggregation
+This feature enables collaborative training of a **Global Surrogate Model** across multiple edge devices. Instead of static datasets, clients dynamically sample from their local search spaces, evaluate objective functions, and train local surrogate models. The regional server aggregates these models to build a powerful global estimator of the objective landscape.
 
 ## Architecture Flow
 
+The system employs a three-tier architecture customized for optimization tasks:
+
 \`\`\`
-┌─────────────────────────────┐
-│     Central Server          │
-│  1. Aggregate Surrogate     │
-│  2. Select Optimal Solution │
-└──────────┬──────────────────┘
-           │ Optimal Solution
-    ┌──────┴──────┬──────────┬──────────┐
-    │             │          │          │
-┌───▼────────┐ ┌─▼─────────┐ ┌▼────────┐ ┌▼────────┐
-│  Client 1  │ │ Client 2  │ │Client 3 │ │Client 4 │
-│ Surrogate  │ │ Surrogate │ │Surrogate│ │Surrogate│
-│   Model    │ │   Model   │ │  Model  │ │  Model  │
-└────┬───────┘ └───┬───────┘ └─┬───────┘ └─┬───────┘
-     │             │           │           │
-     └─────────────┴───────────┴───────────┘
-         Upload Surrogate Models
+      ┌─────────────────┐
+      │  Center Server  │
+      │(Optimization Mgt)│
+      └────────┬────────┘
+               │ Task (Search Space)
+               ▼
+      ┌─────────────────┐
+      │ Regional Node   │
+      │(Surrogate Aggr) │◄──────┐
+      └────────┬────────┘       │
+               │ Aggregation    │ Weights
+      ┌────────┴────────┐       │
+      │                 │       │
+┌─────▼─────┐     ┌─────▼─────┐ │
+│  Device 1 │     │  Device 2 │ │
+│(Sampler)  │     │(Sampler)  │ │
+└───────────┘     └───────────┘
 \`\`\`
+
+## Key Differences from Standard FL
+
+- **Model Role**: Approximator (Surrogate) vs. Classifier
+- **Objective**: Minimize approximation error to find global optima
 
 ## Implementation Details
 
 ### 1. Surrogate Model Definition
+A simple MLP to approximate the objective function.
 
 \`\`\`python
-class SurrogateModel(nn.Module):
-    """
-    Surrogate model for optimization problems
-    Can be a neural network approximating the objective function
-    """
-    def __init__(self, input_dim, hidden_dim=64):
-        super(SurrogateModel, self).__init__()
-        self.network = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
+class SurrogateNet(nn.Module):
+    def __init__(self, input_dim=10):
+        super(SurrogateNet, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 64),
             nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(64, 64),
             nn.ReLU(),
-            nn.Linear(hidden_dim, 1)  # Output: objective value
+            nn.Linear(64, 1)  # Predicts objective value
         )
     
     def forward(self, x):
-        return self.network(x)
+        return self.net(x)
 \`\`\`
 
-### 2. Client-Side Optimization
+### 2. Client-Side: Dynamic Training
+
+The client generates training data on-the-fly by sampling the search space and evaluating the "real" objective function.
 
 \`\`\`python
-class FederatedOptimizationClient:
-    def __init__(self, client_id, objective_function, search_space):
-        self.client_id = client_id
-        self.surrogate_model = SurrogateModel(input_dim=search_space.dim)
-        self.objective_function = objective_function
-        self.search_space = search_space
-        self.local_solutions = []
+class OptimizationTrainer:
+    def __init__(self, objective_func, search_space):
+        self.model = SurrogateNet()
+        self.objective_func = objective_func
         
-    def train_surrogate(self, num_samples=100):
-        """Train surrogate model on local objective evaluations"""
-        # Sample points from search space
-        X = self.search_space.sample(num_samples)
-        y = torch.tensor([
-            self.objective_function(x) for x in X
-        ]).float()
+    def generate_data(self, n_samples=32):
+        """Dynamic data generation"""
+        X = self.search_space.sample(n_samples)
+        y = [self.objective_func(x) for x in X]
+        return torch.tensor(X), torch.tensor(y)
+
+    def fit(self, parameters, config):
+        """Client local training method"""
+        self.set_parameters(parameters)
         
-        # Train surrogate model
-        optimizer = optim.Adam(self.surrogate_model.parameters(), lr=0.01)
-        criterion = nn.MSELoss()
+        # 1. Generate fresh training data
+        X_train, y_train = self.generate_data()
         
-        for epoch in range(50):
-            optimizer.zero_grad()
-            predictions = self.surrogate_model(X)
-            loss = criterion(predictions.squeeze(), y)
-            loss.backward()
-            optimizer.step()
+        # 2. Train surrogate model locally
+        self.train_step(X_train, y_train)
         
-        return self.surrogate_model.state_dict()
+        return self.get_parameters(), len(X_train), {}
+\`\`\`
+
+### 3. Server-Side: Aggregation
+
+The Regional Node aggregates the surrogate models from clients to form a global surrogate.
+
+\`\`\`python
+def start_surrogate_aggregation():
+    # Use FedAvg to build a robust Global Surrogate
+    strategy = FedAvg(
+        fraction_fit=1.0,
+        min_fit_clients=2
+    )
     
-    def find_local_optimum(self):
-        """Use surrogate model to find local optimum"""
-        best_solution = None
-        best_value = float('inf')
-        
-        # Sample candidates and evaluate with surrogate
-        candidates = self.search_space.sample(1000)
-        with torch.no_grad():
-            values = self.surrogate_model(candidates)
-        
-        # Find best candidate
-        best_idx = values.argmin()
-        best_solution = candidates[best_idx]
-        best_value = self.objective_function(best_solution)
-        
-        return best_solution, best_value
-\`\`\`
-
-### 3. Server-Side Aggregation and Selection
-
-\`\`\`python
-class FederatedOptimizationServer:
-    def __init__(self, search_space):
-        self.global_surrogate = SurrogateModel(input_dim=search_space.dim)
-        self.search_space = search_space
-        self.best_solution = None
-        self.best_value = float('inf')
-        
-    def aggregate_surrogates(self, client_surrogates, weights):
-        """Aggregate client surrogate models"""
-        global_dict = self.global_surrogate.state_dict()
-        
-        for key in global_dict.keys():
-            global_dict[key] = torch.zeros_like(global_dict[key])
-            total_weight = sum(weights)
-            
-            for surrogate, weight in zip(client_surrogates, weights):
-                global_dict[key] += surrogate[key] * (weight / total_weight)
-        
-        self.global_surrogate.load_state_dict(global_dict)
-    
-    def select_optimal_solution(self, client_solutions):
-        """
-        Selection function to choose the best solution
-        from all client submissions
-        """
-        best_solution = None
-        best_value = float('inf')
-        
-        # Evaluate all client solutions with global surrogate
-        for solution, value in client_solutions:
-            if value < best_value:
-                best_value = value
-                best_solution = solution
-        
-        self.best_solution = best_solution
-        self.best_value = best_value
-        
-        return best_solution, best_value
-\`\`\`
-
-### 4. Federated Optimization Loop
-
-\`\`\`python
-def federated_optimization(server, clients, num_rounds=20):
-    """
-    Main federated optimization loop
-    """
-    for round_num in range(num_rounds):
-        print(f"\\n=== Optimization Round {round_num + 1}/{num_rounds} ===")
-        
-        # 1. Clients train surrogate models
-        client_surrogates = []
-        client_solutions = []
-        
-        for client in clients:
-            print(f"Client {client.client_id} training surrogate...")
-            surrogate_weights = client.train_surrogate()
-            client_surrogates.append(surrogate_weights)
-            
-            # Find local optimum
-            solution, value = client.find_local_optimum()
-            client_solutions.append((solution, value))
-            print(f"  Local optimum value: {value:.4f}")
-        
-        # 2. Server aggregates surrogates
-        print("Aggregating surrogate models...")
-        weights = [1.0] * len(clients)  # Equal weights
-        server.aggregate_surrogates(client_surrogates, weights)
-        
-        # 3. Server selects optimal solution
-        print("Selecting optimal solution...")
-        best_solution, best_value = server.select_optimal_solution(
-            client_solutions
-        )
-        print(f"Global best value: {best_value:.4f}")
-        
-        # 4. Distribute optimal solution to clients
-        for client in clients:
-            client.incorporate_optimal_solution(best_solution)
-        
-        # 5. Check termination criteria
-        if best_value < convergence_threshold:
-            print("Optimization converged!")
-            break
-\`\`\`
-
-## Example Use Case
-
-\`\`\`python
-# Define optimization problem
-def objective_function(x):
-    """Example: Minimize Rosenbrock function"""
-    return sum(100 * (x[i+1] - x[i]**2)**2 + (1 - x[i])**2 
-               for i in range(len(x) - 1))
-
-# Setup
-search_space = SearchSpace(dim=10, bounds=(-5, 5))
-server = FederatedOptimizationServer(search_space)
-clients = [
-    FederatedOptimizationClient(i, objective_function, search_space)
-    for i in range(4)
-]
-
-# Run optimization
-federated_optimization(server, clients, num_rounds=20)
+    server.start(
+        strategy=strategy,
+        rounds=20
+    )
 \`\`\`
 
 ## Key Features
 
-- ✅ Surrogate model training on each client
-- ✅ Server-side aggregation of surrogate models
-- ✅ Optimal solution selection mechanism
-- ✅ Solution distribution to clients
-- ✅ Convergence monitoring
-- ✅ Flexible objective function support
+- ✅ **Distributed Sampling**: Explore different regions of the search space in parallel.
+- ✅ **Global Approximation**: Server builds a global view of the objective landscape.
+- ✅ **Efficiency**: Reduces the number of expensive real-world evaluations by sharing knowledge.
 `
   },
   'large-small-collaboration': {
     title: 'Large-Small Model Collaboration',
-    content: `# Feature 3: Federated Large-Small Model Collaboration
+    content: `# Feature 3: Cloud-Edge Model Collaboration
 
 ## Overview
 
-This feature implements a hierarchical federated learning system where edge devices run small models for instant responses, while a cloud-based large model performs aggregation, validation, and retraining. The system uses federated distillation to update global knowledge.
+This feature implements a **cloud-edge collaborative training system** with a central server API. The central server provides endpoints for model upload/download and input-output data collection. Edge devices download compressed models, run inference, and upload input-output pairs back to the server for continuous model improvement.
 
-## Scenario: Personal Health Management Assistant
+## Workflow
 
-A cross-modal (image, voice, text) health assistant that:
-- Provides instant preliminary diagnosis on-device
-- Uploads semantic summaries and parameter updates (not raw data)
-- Performs multi-client aggregation and validation in the cloud
-- Updates global knowledge through federated distillation
+The system operates in a continuous loop:
+
+1. **Model Upload**: Upload trained models (large/compressed) to central server
+2. **Model Download**: Edge devices download compressed models from server
+3. **Edge Inference**: Devices run inference and collect input-output pairs
+4. **Data Upload**: Upload input-output pairs to central server
+5. **Model Retraining**: Server retrains models with collected data
 
 ## System Architecture
 
 \`\`\`
-┌─────────────────────────────────────────┐
-│         Cloud Server                    │
-│  ┌───────────────────────────────────┐  │
-│  │   Large Language Model (LLM)      │  │
-│  │   - DeepSeek / ChatGPT / Llama    │  │
-│  │   - Multi-client Aggregation      │  │
-│  │   - Validation & Retraining       │  │
-│  │   - Federated Distillation        │  │
-│  └───────────────┬───────────────────┘  │
-└──────────────────┼──────────────────────┘
-                   │ Knowledge Updates
-        ┌──────────┼──────────┬──────────┐
-        │          │          │          │
-┌───────▼──────┐ ┌─▼─────────┐ ┌▼────────┐ ┌▼────────┐
-│  Device 1    │ │ Device 2  │ │Device 3 │ │Device 4 │
-│  (Android)   │ │  (iOS)    │ │(Android)│ │ (iOS)   │
-│ ┌──────────┐ │ │┌─────────┐│ │┌────────┐│ │┌────────┐│
-│ │Small LLM │ │ ││Small LLM││ ││Small LLM││ ││Small LLM││
-│ │ TinyLlama│ │ ││  Phi-2  ││ ││MobileLLM││ ││ Gemma │││
-│ └──────────┘ │ │└─────────┘│ │└────────┘│ │└────────┘│
-│ Instant Reply│ │Instant   ││ │Instant  ││ │Instant  ││
-└──────────────┘ │Reply     ││ │Reply    ││ │Reply    ││
-                 └──────────┘│ └─────────┘│ └─────────┘│
-                              └───────────┘ └───────────┘
+      ┌─────────────────────────────────┐
+      │    Central Server (API)         │
+      │  ┌──────────────────────────┐   │
+      │  │  POST /api/models/upload │   │
+      │  │  GET  /api/models/download│  │
+      │  │  POST /api/data/upload   │   │
+      │  └──────────────────────────┘   │
+      │  ┌──────────────────────────┐   │
+      │  │  Model Storage (MinIO)   │   │
+      │  │  Data Storage (Database) │   │
+      │  └──────────────────────────┘   │
+      └───────────┬─────────────────────┘
+                  │ HTTP/REST API
+         ┌────────┴────────┐
+         │                 │
+    ┌────▼────┐      ┌────▼────┐
+    │ Device1 │      │ Device2 │
+    │ (Edge)  │      │ (Edge)  │
+    └─────────┘      └─────────┘
 \`\`\`
-
-## Heterogeneous Device Setup
-
-**20 Heterogeneous Devices**:
-- 10 Android devices (various models, compute capabilities)
-- 10 iOS devices (iPhone models with different chips)
-
-**Model Heterogeneity**:
-- Each device runs 2+ LLMs (open-source + closed-source)
-- Examples: DeepSeek, ChatGPT API, Llama, Phi-2, Gemma, TinyLlama
-
-**Server-Side Models**:
-- Large models with API interfaces
-- Switchable model backends for different tasks
 
 ## Implementation Details
 
-### 1. Small Model (Edge Device)
+### 1. Central Server API Endpoints
+
+The central server provides RESTful APIs for model and data management.
 
 \`\`\`python
-class EdgeHealthAssistant:
+from flask import Flask, request, jsonify, send_file
+from werkzeug.utils import secure_filename
+import os
+import json
+from datetime import datetime
+
+app = Flask(__name__)
+
+# Configuration
+MODEL_STORAGE_PATH = './models/'
+DATA_STORAGE_PATH = './data/'
+ALLOWED_EXTENSIONS = {'pth', 'pt', 'onnx'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# ============================================
+# Model Upload API
+# ============================================
+@app.route('/api/models/upload', methods=['POST'])
+def upload_model():
     """
-    Small model running on edge device for instant responses
+    Upload a model to the central server
+    
+    Request:
+        - model_file: Model file (multipart/form-data)
+        - model_type: 'large' or 'compressed'
+        - model_name: Name of the model
+        - version: Model version
+    
+    Response:
+        - model_id: Unique identifier for the uploaded model
+        - storage_path: Path where model is stored
     """
-    def __init__(self, device_id, model_name, device_type):
+    if 'model_file' not in request.files:
+        return jsonify({'error': 'No model file provided'}), 400
+    
+    file = request.files['model_file']
+    model_type = request.form.get('model_type', 'compressed')
+    model_name = request.form.get('model_name', 'model')
+    version = request.form.get('version', '1.0')
+    
+    if file.filename == '':
+        return jsonify({'error': 'Empty filename'}), 400
+    
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        model_id = f"{model_name}_{model_type}_{version}_{timestamp}"
+        storage_filename = f"{model_id}.pth"
+        storage_path = os.path.join(MODEL_STORAGE_PATH, storage_filename)
+        
+        # Save model file
+        os.makedirs(MODEL_STORAGE_PATH, exist_ok=True)
+        file.save(storage_path)
+        
+        # Save metadata
+        metadata = {
+            'model_id': model_id,
+            'model_name': model_name,
+            'model_type': model_type,
+            'version': version,
+            'upload_time': timestamp,
+            'storage_path': storage_path,
+            'file_size': os.path.getsize(storage_path)
+        }
+        
+        metadata_path = os.path.join(MODEL_STORAGE_PATH, f"{model_id}_metadata.json")
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        
+        return jsonify({
+            'success': True,
+            'model_id': model_id,
+            'storage_path': storage_path,
+            'message': f'Model {model_id} uploaded successfully'
+        }), 200
+    
+    return jsonify({'error': 'Invalid file type'}), 400
+
+
+# ============================================
+# Model Download API
+# ============================================
+@app.route('/api/models/download', methods=['GET'])
+def download_model():
+    """
+    Download a model from the central server
+    
+    Query Parameters:
+        - model_id: Unique identifier of the model (optional)
+        - model_name: Name of the model (optional)
+        - model_type: 'large' or 'compressed' (default: 'compressed')
+        - latest: If true, download the latest version (default: true)
+    
+    Response:
+        - Binary model file
+    """
+    model_id = request.args.get('model_id')
+    model_name = request.args.get('model_name')
+    model_type = request.args.get('model_type', 'compressed')
+    latest = request.args.get('latest', 'true').lower() == 'true'
+    
+    # Find model file
+    if model_id:
+        # Download specific model by ID
+        model_path = os.path.join(MODEL_STORAGE_PATH, f"{model_id}.pth")
+        if not os.path.exists(model_path):
+            return jsonify({'error': f'Model {model_id} not found'}), 404
+    
+    elif model_name and latest:
+        # Download latest version of a model
+        model_files = [f for f in os.listdir(MODEL_STORAGE_PATH) 
+                      if f.startswith(f"{model_name}_{model_type}") and f.endswith('.pth')]
+        
+        if not model_files:
+            return jsonify({'error': f'No models found for {model_name}'}), 404
+        
+        # Sort by timestamp (latest first)
+        model_files.sort(reverse=True)
+        model_path = os.path.join(MODEL_STORAGE_PATH, model_files[0])
+    
+    else:
+        return jsonify({'error': 'Must provide model_id or model_name'}), 400
+    
+    return send_file(model_path, as_attachment=True)
+
+
+# ============================================
+# Input-Output Data Upload API
+# ============================================
+@app.route('/api/data/upload', methods=['POST'])
+def upload_data():
+    """
+    Upload input-output pairs from edge devices
+    
+    Request Body (JSON):
+        {
+            "device_id": "device_001",
+            "model_id": "resnet_compressed_1.0_20231218",
+            "data": [
+                {
+                    "input": [...],  # Input tensor as list
+                    "output": [...], # Output tensor as list
+                    "timestamp": 1702901234.56
+                },
+                ...
+            ]
+        }
+    
+    Response:
+        - data_id: Unique identifier for uploaded data batch
+        - count: Number of data points uploaded
+    """
+    if not request.json:
+        return jsonify({'error': 'No JSON data provided'}), 400
+    
+    device_id = request.json.get('device_id')
+    model_id = request.json.get('model_id')
+    data_points = request.json.get('data', [])
+    
+    if not device_id or not data_points:
+        return jsonify({'error': 'Missing device_id or data'}), 400
+    
+    # Generate unique data batch ID
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    data_id = f"{device_id}_{timestamp}"
+    
+    # Save data to storage
+    os.makedirs(DATA_STORAGE_PATH, exist_ok=True)
+    data_file_path = os.path.join(DATA_STORAGE_PATH, f"{data_id}.json")
+    
+    data_batch = {
+        'data_id': data_id,
+        'device_id': device_id,
+        'model_id': model_id,
+        'upload_time': timestamp,
+        'count': len(data_points),
+        'data': data_points
+    }
+    
+    with open(data_file_path, 'w') as f:
+        json.dump(data_batch, f, indent=2)
+    
+    return jsonify({
+        'success': True,
+        'data_id': data_id,
+        'count': len(data_points),
+        'message': f'Uploaded {len(data_points)} data points from {device_id}'
+    }), 200
+
+
+# ============================================
+# Model List API (Helper)
+# ============================================
+@app.route('/api/models/list', methods=['GET'])
+def list_models():
+    """
+    List all available models
+    
+    Query Parameters:
+        - model_type: Filter by model type (optional)
+    
+    Response:
+        - models: List of model metadata
+    """
+    model_type = request.args.get('model_type')
+    
+    models = []
+    for filename in os.listdir(MODEL_STORAGE_PATH):
+        if filename.endswith('_metadata.json'):
+            with open(os.path.join(MODEL_STORAGE_PATH, filename), 'r') as f:
+                metadata = json.load(f)
+                if not model_type or metadata['model_type'] == model_type:
+                    models.append(metadata)
+    
+    # Sort by upload time (latest first)
+    models.sort(key=lambda x: x['upload_time'], reverse=True)
+    
+    return jsonify({'models': models}), 200
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
+\`\`\`
+
+### 2. Edge Device Client
+
+Edge devices interact with the central server API to download models and upload data.
+
+\`\`\`python
+import requests
+import torch
+import numpy as np
+import time
+import json
+
+class EdgeDeviceClient:
+    def __init__(self, device_id, server_url='http://localhost:5000'):
         self.device_id = device_id
-        self.device_type = device_type  # 'android' or 'ios'
-        self.small_model = self.load_small_model(model_name)
-        self.local_data_manager = LocalDataManager()
+        self.server_url = server_url
+        self.model = None
+        self.current_model_id = None
+        self.data_buffer = []
         
-    def load_small_model(self, model_name):
-        """Load appropriate small LLM for device"""
-        if self.device_type == 'android':
-            # Use TensorFlow Lite or ONNX Runtime
-            return load_tflite_model(model_name)
-        else:  # iOS
-            # Use Core ML or MLX
-            return load_coreml_model(model_name)
-    
-    def process_query(self, query, modality='text'):
+    def download_model(self, model_name='resnet', model_type='compressed'):
         """
-        Process user query and generate instant response
-        
-        Args:
-            query: User input (text, image, or audio)
-            modality: 'text', 'image', or 'audio'
+        Download the latest compressed model from central server
         """
-        # 1. Preprocess input based on modality
-        processed_input = self.preprocess(query, modality)
-        
-        # 2. Generate instant response with small model
-        response = self.small_model.generate(processed_input)
-        
-        # 3. Extract semantic summary (not raw data)
-        semantic_summary = self.extract_semantics(
-            query, response, modality
-        )
-        
-        # 4. Compute parameter updates
-        param_updates = self.compute_updates(processed_input, response)
-        
-        return response, semantic_summary, param_updates
-    
-    def extract_semantics(self, query, response, modality):
-        """
-        Extract semantic representation without exposing raw data
-        """
-        return {
-            'modality': modality,
-            'intent': self.classify_intent(query),
-            'entities': self.extract_entities(query),
-            'embedding': self.get_embedding(query),  # Encrypted
-            'confidence': self.compute_confidence(response)
-        }
-    
-    def compute_updates(self, input_data, output):
-        """
-        Compute model parameter updates for federated learning
-        """
-        # Use differential privacy for privacy preservation
-        gradients = self.small_model.compute_gradients(input_data, output)
-        noisy_gradients = self.add_differential_privacy(gradients)
-        return noisy_gradients
-    
-    def upload_to_cloud(self, semantic_summary, param_updates):
-        """
-        Upload semantic summaries and updates (NOT raw data)
-        """
-        encrypted_data = {
-            'device_id': self.device_id,
-            'device_type': self.device_type,
-            'model_name': self.small_model.name,
-            'semantic_summary': semantic_summary,
-            'param_updates': param_updates,
-            'timestamp': datetime.now()
-        }
-        
-        # Encrypt before transmission
-        encrypted_payload = self.encrypt(encrypted_data)
-        return self.send_to_server(encrypted_payload)
-\`\`\`
-
-### 2. Cloud Large Model Server
-
-\`\`\`python
-class CloudLargeModelServer:
-    """
-    Cloud server managing large models and federated aggregation
-    """
-    def __init__(self, model_configs):
-        self.large_models = self.initialize_models(model_configs)
-        self.current_model = 'deepseek'  # Default
-        self.aggregation_buffer = []
-        
-    def initialize_models(self, configs):
-        """
-        Initialize multiple large models with API interfaces
-        """
-        models = {}
-        for config in configs:
-            if config['type'] == 'deepseek':
-                models['deepseek'] = DeepSeekAPI(config['api_key'])
-            elif config['type'] == 'chatgpt':
-                models['chatgpt'] = OpenAIAPI(config['api_key'])
-            elif config['type'] == 'llama':
-                models['llama'] = LlamaModel(config['model_path'])
-            # Add more models as needed
-        return models
-    
-    def switch_model(self, model_name):
-        """Switch between different large models"""
-        if model_name in self.large_models:
-            self.current_model = model_name
-            return True
-        return False
-    
-    def aggregate_client_updates(self, client_updates):
-        """
-        Multi-client aggregation with validation
-        
-        Args:
-            client_updates: List of (semantic_summary, param_updates) tuples
-        """
-        # 1. Validate client updates
-        valid_updates = self.validate_updates(client_updates)
-        
-        # 2. Aggregate semantic summaries
-        aggregated_semantics = self.aggregate_semantics(
-            [u['semantic_summary'] for u in valid_updates]
-        )
-        
-        # 3. Aggregate parameter updates
-        aggregated_params = self.aggregate_parameters(
-            [u['param_updates'] for u in valid_updates]
-        )
-        
-        # 4. Update large model with aggregated knowledge
-        self.update_large_model(aggregated_semantics, aggregated_params)
-        
-        return aggregated_params
-    
-    def validate_updates(self, client_updates):
-        """
-        Validate client updates for quality and security
-        """
-        valid_updates = []
-        
-        for update in client_updates:
-            # Check data quality
-            if self.check_quality(update):
-                # Check for adversarial updates
-                if not self.detect_adversarial(update):
-                    valid_updates.append(update)
-        
-        return valid_updates
-    
-    def federated_distillation(self, small_model_updates):
-        """
-        Federated distillation: Transfer knowledge from large to small models
-        """
-        # 1. Generate soft labels from large model
-        soft_labels = self.large_models[self.current_model].generate_soft_labels(
-            small_model_updates
-        )
-        
-        # 2. Create distilled knowledge package
-        distilled_knowledge = {
-            'soft_labels': soft_labels,
-            'temperature': 3.0,  # Distillation temperature
-            'global_patterns': self.extract_global_patterns(),
-            'updated_weights': self.compute_distilled_weights()
-        }
-        
-        # 3. Distribute to edge devices
-        return distilled_knowledge
-    
-    def retrain_large_model(self, aggregated_data):
-        """
-        Retrain large model with aggregated client knowledge
-        """
-        # Use aggregated semantic summaries for retraining
-        training_data = self.prepare_training_data(aggregated_data)
-        
-        # Fine-tune large model
-        self.large_models[self.current_model].fine_tune(
-            training_data,
-            epochs=3,
-            learning_rate=1e-5
-        )
-\`\`\`
-
-### 3. Federated Learning Coordinator
-
-\`\`\`python
-class FederatedHealthCoordinator:
-    """
-    Coordinates federated learning between edge devices and cloud
-    """
-    def __init__(self, server, devices):
-        self.server = server
-        self.devices = devices
-        self.round_num = 0
-        
-    def run_federated_round(self):
-        """Execute one round of federated learning"""
-        print(f"\\n=== Federated Round {self.round_num + 1} ===")
-        
-        # 1. Devices process local queries and generate updates
-        device_updates = []
-        for device in self.devices:
-            # Simulate user interactions
-            queries = device.get_pending_queries()
+        try:
+            # Request latest model
+            response = requests.get(
+                f'{self.server_url}/api/models/download',
+                params={
+                    'model_name': model_name,
+                    'model_type': model_type,
+                    'latest': 'true'
+                }
+            )
             
-            for query in queries:
-                response, semantics, params = device.process_query(query)
+            if response.status_code == 200:
+                # Save model locally
+                model_path = f'./local_models/{self.device_id}_model.pth'
+                with open(model_path, 'wb') as f:
+                    f.write(response.content)
                 
-                # Upload to cloud (semantic + params, NO raw data)
-                device.upload_to_cloud(semantics, params)
-                device_updates.append({
-                    'device_id': device.device_id,
-                    'semantic_summary': semantics,
-                    'param_updates': params
-                })
-        
-        # 2. Server aggregates updates
-        print(f"Aggregating updates from {len(device_updates)} devices...")
-        aggregated_params = self.server.aggregate_client_updates(
-            device_updates
-        )
-        
-        # 3. Server performs validation
-        print("Validating aggregated model...")
-        validation_score = self.server.validate_aggregated_model()
-        print(f"Validation score: {validation_score:.4f}")
-        
-        # 4. Federated distillation
-        print("Performing federated distillation...")
-        distilled_knowledge = self.server.federated_distillation(
-            device_updates
-        )
-        
-        # 5. Distribute updated knowledge to devices
-        print("Distributing knowledge updates to devices...")
-        for device in self.devices:
-            device.update_from_distillation(distilled_knowledge)
-        
-        # 6. Retrain large model
-        if self.round_num % 5 == 0:  # Every 5 rounds
-            print("Retraining large model...")
-            self.server.retrain_large_model(device_updates)
-        
-        self.round_num += 1
+                # Load model
+                self.model = torch.load(model_path)
+                self.model.eval()
+                self.current_model_id = f"{model_name}_{model_type}"
+                
+                print(f"[{self.device_id}] Model downloaded successfully")
+                return True
+            else:
+                print(f"[{self.device_id}] Failed to download model: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"[{self.device_id}] Error downloading model: {e}")
+            return False
     
-    def run_continuous_learning(self, num_rounds=100):
-        """Run continuous federated learning"""
-        for _ in range(num_rounds):
-            self.run_federated_round()
-            time.sleep(60)  # Wait between rounds
-\`\`\`
-
-### 4. Heterogeneous Device Management
-
-\`\`\`python
-class HeterogeneousDeviceManager:
-    """
-    Manage 20 heterogeneous devices with different capabilities
-    """
-    def __init__(self):
-        self.devices = []
-        self.setup_heterogeneous_devices()
-        
-    def setup_heterogeneous_devices(self):
+    def run_inference(self, input_data):
         """
-        Setup 20 devices with heterogeneous characteristics
+        Run inference and collect input-output pairs
         """
-        # Android devices (10)
-        android_models = [
-            ('tinyllama', 'low'),      # Low compute
-            ('mobilellm', 'medium'),   # Medium compute
-            ('phi-2', 'high'),         # High compute
-            ('gemma-2b', 'medium'),
-            ('tinyllama', 'low'),
-            ('mobilellm', 'medium'),
-            ('phi-2', 'high'),
-            ('gemma-2b', 'medium'),
-            ('tinyllama', 'low'),
-            ('mobilellm', 'high')
-        ]
+        if self.model is None:
+            raise ValueError("No model loaded. Call download_model() first.")
         
-        for i, (model, compute) in enumerate(android_models):
-            device = EdgeHealthAssistant(
-                device_id=f'android_{i}',
-                model_name=model,
-                device_type='android'
-            )
-            device.compute_capability = compute
-            self.devices.append(device)
+        with torch.no_grad():
+            output = self.model(input_data)
         
-        # iOS devices (10)
-        ios_models = [
-            ('phi-2', 'high'),         # iPhone 15 Pro
-            ('gemma-2b', 'high'),      # iPhone 15 Pro Max
-            ('mobilellm', 'medium'),   # iPhone 14
-            ('tinyllama', 'medium'),   # iPhone 13
-            ('phi-2', 'high'),         # iPhone 15
-            ('gemma-2b', 'high'),      # iPhone 14 Pro
-            ('mobilellm', 'medium'),   # iPhone 13 Pro
-            ('tinyllama', 'low'),      # iPhone 12
-            ('phi-2', 'high'),         # iPhone 15 Pro
-            ('mobilellm', 'medium')    # iPhone 14
-        ]
+        # Store input-output pair
+        self.data_buffer.append({
+            'input': input_data.cpu().numpy().tolist(),
+            'output': output.cpu().numpy().tolist(),
+            'timestamp': time.time()
+        })
         
-        for i, (model, compute) in enumerate(ios_models):
-            device = EdgeHealthAssistant(
-                device_id=f'ios_{i}',
-                model_name=model,
-                device_type='ios'
-            )
-            device.compute_capability = compute
-            self.devices.append(device)
+        return output
     
-    def get_device_statistics(self):
-        """Get statistics about device heterogeneity"""
-        stats = {
-            'total_devices': len(self.devices),
-            'android': sum(1 for d in self.devices if d.device_type == 'android'),
-            'ios': sum(1 for d in self.devices if d.device_type == 'ios'),
-            'models': {},
-            'compute_levels': {'low': 0, 'medium': 0, 'high': 0}
-        }
+    def upload_data(self, batch_size=100):
+        """
+        Upload collected input-output pairs to central server
+        """
+        if len(self.data_buffer) < batch_size:
+            print(f"[{self.device_id}] Buffer size {len(self.data_buffer)} < {batch_size}, skipping upload")
+            return False
         
-        for device in self.devices:
-            # Count models
-            model_name = device.small_model.name
-            stats['models'][model_name] = stats['models'].get(model_name, 0) + 1
+        try:
+            # Prepare payload
+            payload = {
+                'device_id': self.device_id,
+                'model_id': self.current_model_id,
+                'data': self.data_buffer[:batch_size]
+            }
             
-            # Count compute levels
-            stats['compute_levels'][device.compute_capability] += 1
-        
-        return stats
+            # Upload to server
+            response = requests.post(
+                f'{self.server_url}/api/data/upload',
+                json=payload,
+                headers={'Content-Type': 'application/json'}
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f"[{self.device_id}] Uploaded {result['count']} data points")
+                
+                # Clear uploaded data from buffer
+                self.data_buffer = self.data_buffer[batch_size:]
+                return True
+            else:
+                print(f"[{self.device_id}] Failed to upload data: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"[{self.device_id}] Error uploading data: {e}")
+            return False
 \`\`\`
 
-## Complete Medical Scenario Example
+### 3. Usage Example
 
 \`\`\`python
-# 1. Setup heterogeneous devices
-device_manager = HeterogeneousDeviceManager()
-devices = device_manager.devices
+# ============================================
+# Server Side: Upload a compressed model
+# ============================================
+import requests
 
-print("Device Statistics:")
-print(device_manager.get_device_statistics())
+# Upload compressed model to server
+with open('compressed_model.pth', 'rb') as f:
+    files = {'model_file': f}
+    data = {
+        'model_type': 'compressed',
+        'model_name': 'resnet',
+        'version': '1.0'
+    }
+    response = requests.post('http://localhost:5000/api/models/upload', 
+                            files=files, data=data)
+    print(response.json())
 
-# 2. Setup cloud server with multiple LLMs
-model_configs = [
-    {'type': 'deepseek', 'api_key': 'your_deepseek_key'},
-    {'type': 'chatgpt', 'api_key': 'your_openai_key'},
-    {'type': 'llama', 'model_path': './models/llama-70b'}
-]
-server = CloudLargeModelServer(model_configs)
 
-# 3. Initialize federated coordinator
-coordinator = FederatedHealthCoordinator(server, devices)
+# ============================================
+# Edge Device: Download model and run inference
+# ============================================
 
-# 4. Run continuous federated learning
-coordinator.run_continuous_learning(num_rounds=100)
+# Initialize edge device client
+device = EdgeDeviceClient(device_id='device_001', server_url='http://localhost:5000')
 
-# 5. Switch large model backend dynamically
-server.switch_model('chatgpt')  # Switch to ChatGPT
-coordinator.run_federated_round()
+# Download latest compressed model
+device.download_model(model_name='resnet', model_type='compressed')
 
-server.switch_model('llama')    # Switch to Llama
-coordinator.run_federated_round()
+# Run inference and collect data
+for i in range(500):
+    # Get input data (e.g., from camera, sensor, etc.)
+    input_data = torch.randn(1, 3, 224, 224)  # Example input
+    
+    # Run inference
+    output = device.run_inference(input_data)
+    
+    # Upload data every 100 samples
+    if (i + 1) % 100 == 0:
+        device.upload_data(batch_size=100)
+
+print(f"Inference complete. Buffer size: {len(device.data_buffer)}")
 \`\`\`
-
-## Privacy and Security Features
-
-### 1. Data Privacy
-- Only semantic summaries uploaded (no raw data)
-- Differential privacy on parameter updates
-- End-to-end encryption
-
-### 2. Model Security
-- Adversarial update detection
-- Secure aggregation protocols
-- Model watermarking
-
-### 3. Compliance
-- HIPAA compliance for medical data
-- GDPR compliance for EU users
-- Local data storage only
-
-## Performance Optimization
-
-### 1. Adaptive Participation
-- Select devices based on compute capability
-- Battery-aware scheduling
-- Network-aware communication
-
-### 2. Model Compression
-- Quantization for edge models
-- Pruning for faster inference
-- Knowledge distillation for size reduction
-
-### 3. Communication Efficiency
-- Gradient compression
-- Sparse updates
-- Federated dropout
 
 ## Key Features
 
-- ✅ 20 heterogeneous devices (Android + iOS)
-- ✅ Multiple LLM support (DeepSeek, ChatGPT, Llama, etc.)
-- ✅ Small models for instant on-device responses
-- ✅ Large models for aggregation and validation
-- ✅ Federated distillation for knowledge transfer
-- ✅ Privacy-preserving (semantic summaries only)
-- ✅ Cross-modal support (text, image, audio)
-- ✅ Medical scenario validation
+- ✅ **RESTful API**: Standard HTTP endpoints for model and data management
+- ✅ **Model Upload**: Upload trained models (large/compressed) to central server
+- ✅ **Model Download**: Edge devices download latest compressed models
+- ✅ **Data Upload**: Upload input-output pairs for model improvement
+- ✅ **Model Versioning**: Track different versions of models
+- ✅ **Metadata Management**: Store and retrieve model metadata
+- ✅ **Privacy-Preserving**: Only anonymized input-output pairs are uploaded
 `
   }
 }
@@ -972,7 +739,7 @@ Standard federated learning with convolutional neural networks. Each client trai
 **Key Topics:**
 - Client-side local data management
 - Model training and parameter updates
-- Server-side FedAvg aggregation
+- Server-side Fed-Evo aggregation
 - MNIST dataset validation
 - Multiple aggregation algorithms
 
@@ -991,16 +758,14 @@ Surrogate model-based optimization for finding optimal solutions. Each client tr
 ---
 
 ### [3. Large-Small Model Collaboration](/examples/large-small-collaboration)
-Hierarchical federated learning with edge devices running small models and cloud running large models. Features 20 heterogeneous devices with multiple LLMs.
+Cloud-edge collaborative training system. Cloud trains large models and deploys compressed versions to edge devices. Edge devices upload input-output pairs for continuous model improvement.
 
 **Key Topics:**
-- Personal health management assistant scenario
-- 20 heterogeneous devices (Android + iOS)
-- Small models for instant responses
-- Large models for aggregation and validation
-- Federated distillation
-- Privacy-preserving semantic summaries
-- Cross-modal support (text, image, audio)
+- Cloud training and model compression
+- Edge deployment and inference
+- Input-output data collection
+- Cloud retraining with edge data
+- Continuous improvement loop
 
 ---
 
@@ -1056,3 +821,4 @@ Click on any example above to view detailed implementation code, architecture di
     </div>
   )
 }
+          

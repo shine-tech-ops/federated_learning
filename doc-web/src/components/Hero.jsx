@@ -11,22 +11,14 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          <motion.span 
-            className={styles.badge}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-          >
-            🌸 Open Source Federated Learning
-          </motion.span>
+        
           
           <h1 className={styles.title}>
             Learn Local <span className={styles.highlight}>Evolve Global</span> 
           </h1>
           
           <p className={styles.subtitle}>
-            Empower distributed intelligence. Train models locally on edge devices, 
-            aggregate insights globally—without ever sharing raw data.
+            Empower distributed intelligence. Train models locallyon edge devices, aggregate insights globally , federated cnn training ,federated optimization, federated large-small model
           </p>
           
           <div className={styles.actions}>

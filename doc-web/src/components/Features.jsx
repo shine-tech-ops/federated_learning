@@ -61,7 +61,7 @@ const features = [
       </svg>
     ),
     title: 'Auto Optimization',
-    description: 'Multiple aggregation algorithms including FedAvg, FedProx, FedAdam, and more. Automatically optimize training strategies for better convergence and performance.',
+    description: 'Multiple aggregation algorithms including Fed-Evo, FedProx, FedAdam, and more. Automatically optimize training strategies for better convergence and performance.',
     color: '#EC4899',
   },
   {
