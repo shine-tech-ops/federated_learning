@@ -53,7 +53,7 @@ export default function Nav() {
           {/* Desktop Actions */}
           <div className={styles.actions}>
             <a 
-              href="https://gitlab.osvie.com/shinetechzz/federated_learning" 
+              href="https://github.com/shine-tech-ops/federated_learning" 
               target="_blank" 
               rel="noopener noreferrer"
               className={styles.githubBtn}
