@@ -1,0 +1,81 @@
+/venv/
+.idea
+/frontend/build/
+frontend/node_modules/
+/data/
+/backend/logs/
+/backend/upload/
+
+
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+end_of_line = lf
+insert_final_newline = true
+
+# Matches multiple files with brace expansion notation
+# Set default charset
+[*.{js,py}]
+charset = utf-8
+
+# 4 space indentation
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Indentation override for all JS under lib directory
+[lib/**.js]
+indent_style = space
+indent_size = 2
+
+# Matches the exact files either package.json or .travis.yml
+[{package.json,.travis.yml}]
+indent_style = space
+indent_size = 2
+/regional/app/conf/env.py
+/backend/conf/env.py
+*.pyc
+minio/data/*
+rabbitmq/data/*
+mvp/*
+mosquitto/data/*
+mosquitto/log/*
+redis/data/*
+rabbitmq/data/*
+rabbitmq/log/*
+.DS_Store
+backend/.python-version
+logs/backend.log
+rabbitmq/data/*
+mosquitto/data/*
+redis/data/*
+mosquitto/log/*
+backend/conf/__pycache__/*
+*.pyc
+backend/backend/.DS_Store
+mvp/*
+logs/backend.log
+nginx/nginx.conf
+backend/.python-version
+backend/.DS_Store
+.DS_Store
+
+backend/.venv/*
+backend/venv/*
+regional/.reginoal/*
+regional/logs/regional.log
+frontend/dist/*
+regional/.regional_venv/*
+device/data/*
+regional/mosquitto/log/mosquitto.log
+device/logs/device_default.log
+regional/mosquitto/data/mosquitto.db
+device/models/*
+regional/parameters/*
+.gitignore
+doc-web/node_modules/*
+device/logs/*

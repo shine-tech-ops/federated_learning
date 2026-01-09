@@ -1,0 +1,116 @@
+:deep(.el-input-group__append, .el-input-group__prepend) {
+  padding: 0;
+}
+.wave {
+  position: fixed;
+  height: 100%;
+  left: 0;
+  bottom: 0;
+  z-index: 0;
+}
+
+.login-container {
+  background-color: #d4e9ff;
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  // grid-template-columns: repeat(2, 1fr);
+  // grid-gap: 18rem;
+  background-size: cover;
+  padding: 0 2rem;
+  .login-img {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    z-index: 1;
+    .svg-icon {
+      font-size: 26vw;
+    }
+  }
+}
+
+.login-box {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  justify-content: end;
+  margin-right: 6%;
+}
+
+.logo-box {
+  position: absolute;
+  left: 50px;
+  top: 40px;
+}
+
+.login-form {
+  width: 400px;
+  padding: 40px 40px 70px;
+  // background: var(--el-color-white);
+  background: #333;
+  background-size: 100% 100%;
+  // border: 1px solid var(--el-border-color);
+  border-radius: 4px;
+  z-index: 1;
+  h2 {
+    text-transform: uppercase;
+    margin: 0 0 20px 0;
+    padding: 25px 0;
+    color: #fff;
+    font-size: 30px;
+    font-weight: 700;
+  }
+}
+
+// 改为深色
+:deep(.login-form) {
+  .el-input {
+    // --el-input-hover-border: #51596c;
+    // --el-input-border-color: #324061;
+    // --el-input-bg-color: #324061;
+    // --el-input-text-color: #fff;
+    // --el-input-icon-color: #fff;
+  }
+}
+
+@media screen and (max-width: 1180px) {
+  .login-container {
+    grid-gap: 9rem;
+  }
+
+  .login-form {
+    width: 340px;
+  }
+
+  .login-box {
+    margin-right: 0;
+    justify-content: center;
+  }
+
+  .login-form h2 {
+    font-size: 2.4rem;
+    margin: 8px 0;
+  }
+
+  .img img {
+    width: 360px;
+  }
+}
+
+@media screen and (max-width: 968px) {
+  .wave {
+    display: none;
+  }
+
+  .img {
+    display: none;
+  }
+
+  .login-container {
+    grid-template-columns: 1fr;
+  }
+
+  .login-box {
+    justify-content: center;
+  }
+}

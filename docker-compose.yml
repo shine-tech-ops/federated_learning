@@ -1,0 +1,123 @@
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16-ts2.14
+    user: root
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: always
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/127.0.0.1/5432" ]
+      interval: 5s
+      timeout: 60s
+      retries: 120
+    environment:
+      - POSTGRES_DB=backend
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - TIMESCALEDB_TELEMETRY=off  # 根据需要调整
+    networks:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./dockers/backend.Dockerfile
+    entrypoint: ["/bin/sh", "-c", "python manage.py migrate && python manage.py migratecomment && python manage.py runserver 0.0.0.0:8000"]
+    volumes:
+      - ./backend:/code
+    ports:
+      - "8085:8000"
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_NAME=backend
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PORT=5432
+      - ENABLE_APP=CenterApp
+      - X_API_TOKEN=fNKZrhZlRGdqBCKZkgvpENkRIsorvRGBHUMoMEtobuU
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=admin123456
+      - MINIO_USE_SSL=false
+      - MINIO_BUCKET_NAME=models
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=rabbitmq
+      - RABBITMQ_PASSWORD=rabbitmq
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+      - minio
+    networks:
+      - backend
+
+  redis:
+    image: redis:7.2.5
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+    networks:
+      - backend
+
+ 
+
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - "./rabbitmq/data:/var/lib/rabbitmq"
+    environment:
+      RABBITMQ_DEFAULT_USER: "rabbitmq"
+      RABBITMQ_DEFAULT_PASS: "rabbitmq"
+    restart: always
+    networks:
+      - backend
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - "./minio/data:/data"
+      - "./minio/config:/root/.minio"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: admin123456
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 10s
+    restart: always
+    networks:
+      - backend
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./dockers/frontend.Dockerfile
+    volumes:
+      - ./frontend:/code
+    ports:
+      - "8086:80"
+    depends_on:
+      - backend
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge

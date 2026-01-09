@@ -1,0 +1,71 @@
+<!-- res/layout/activity_westlake.xml -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#ffffff">
+
+    <!-- 顶部工具栏 -->
+    <LinearLayout
+        android:id="@+id/margin"
+        style="?android:attr/buttonBarStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="#ff0000"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <Button
+            android:id="@+id/btn_switch_to_terminal"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@color/blue_link_light"
+            android:text="切换到终端"
+            tools:ignore="HardcodedText" />
+
+        <Button
+            android:id="@+id/btn_execute_command"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@color/blue_link_dark"
+            android:text="执行命令"
+            tools:ignore="HardcodedText" />
+
+    </LinearLayout>
+
+    <!-- 命令输入区域 -->
+    <EditText
+        android:id="@+id/et_command_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:autofillHints=""
+        android:hint="输入命令..."
+        android:inputType="text"
+        android:padding="8dp"
+        tools:ignore="HardcodedText" />
+
+    <!-- 输出显示区域 -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <TextView
+            android:id="@+id/tv_output"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#f5f5f5"
+            android:padding="8dp"
+            android:textColor="#333333"
+            android:textSize="14sp" />
+
+    </ScrollView>
+
+</LinearLayout>

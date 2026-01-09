@@ -1,0 +1,34 @@
+{
+    "task": {
+        "id": "",
+        "name": ""
+    },
+    "model": {
+        "id": "",
+        "name": "",
+        "description": "",
+        "file": ""
+    },
+    "train": {
+        "index": 0,
+        "round": 0,
+        "aggregation_method": null,
+        "progress": 0,
+        "accuracy": 0,
+        "loss": 0,
+        "correct": 0,
+        "total": 0
+    },
+    "device": {
+        "id": "",
+        "status": "offline",
+        "timestamp": 0,
+        "description": ""
+    },
+    "flower_server": {
+        "host": "127.0.0.1",
+        "port": 8080,
+        "server_id": "",
+        "running": ""
+    }
+}
