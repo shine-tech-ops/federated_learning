@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { marked } from 'marked'
 import styles from './Documentation.module.css'
+import CNNTrainingDiagram from './CNNTrainingDiagram'
+import OptimizationDiagram from './OptimizationDiagram'
+import CloudEdgeDiagram from './CloudEdgeDiagram'
 
 // Examples content mapping
 const examples = {
@@ -713,16 +716,21 @@ export default function Examples() {
   useEffect(() => {
     if (exampleId && examples[exampleId]) {
       setCurrentExample(exampleId)
-      
-      // Configure marked options
+
+      // Configure marked options to allow HTML
       marked.setOptions({
         breaks: true,
         gfm: true,
         headerIds: true,
-        mangle: false
+        mangle: false,
+        sanitize: false  // Allow HTML/SVG rendering
       })
-      
-      const html = marked(examples[exampleId].content)
+
+      // Use marked.parse() instead of marked() for better HTML support
+      const html = marked.parse(examples[exampleId].content, {
+        sanitize: false,
+        gfm: true
+      })
       setHtmlContent(html)
     } else {
       // Show table of contents
@@ -812,10 +820,73 @@ Click on any example above to view detailed implementation code, architecture di
       
       <main className={styles.content}>
         <div className={styles.contentWrapper}>
-          <article 
-            className={styles.markdown}
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
-          />
+          {currentExample === 'cnn-training' ? (
+            <article className={styles.markdown}>
+              <h1>Feature 1: Federated CNN Training</h1>
+              <h2>Overview</h2>
+              <div dangerouslySetInnerHTML={{
+                __html: htmlContent
+                  .replace(/<h1>.*?<\/h1>/, '')
+                  .replace(/<h2>Overview<\/h2>/, '')
+                  .split('<h2>Architecture Flow</h2>')[0]
+              }} />
+              <h2>Architecture Flow</h2>
+              <CNNTrainingDiagram />
+              <div dangerouslySetInnerHTML={{
+                __html: '<div>' + htmlContent.split('<h2>Architecture Flow</h2>')[1].split('<h2>Key Components</h2>')[0] + '</div>'
+              }} />
+              <div dangerouslySetInnerHTML={{
+                __html: '<div><h2>Key Components</h2>' + htmlContent.split('<h2>Key Components</h2>')[1] + '</div>'
+              }} />
+            </article>
+          ) : currentExample === 'optimization' ? (
+            <article className={styles.markdown}>
+              <h1>Feature 2: Federated Surrogate Optimization</h1>
+              <h2>Overview</h2>
+              <div dangerouslySetInnerHTML={{
+                __html: htmlContent
+                  .replace(/<h1>.*?<\/h1>/, '')
+                  .replace(/<h2>Overview<\/h2>/, '')
+                  .split('<h2>Architecture Flow</h2>')[0]
+              }} />
+              <h2>Architecture Flow</h2>
+              <OptimizationDiagram />
+              <div dangerouslySetInnerHTML={{
+                __html: '<div>' + htmlContent.split('<h2>Architecture Flow</h2>')[1].split('<h2>Key Differences from Standard FL</h2>')[0] + '</div>'
+              }} />
+              <div dangerouslySetInnerHTML={{
+                __html: '<div><h2>Key Differences from Standard FL</h2>' + htmlContent.split('<h2>Key Differences from Standard FL</h2>')[1] + '</div>'
+              }} />
+            </article>
+          ) : currentExample === 'large-small-collaboration' ? (
+            <article className={styles.markdown}>
+              <h1>Feature 3: Cloud-Edge Model Collaboration</h1>
+              <h2>Overview</h2>
+              <div dangerouslySetInnerHTML={{
+                __html: htmlContent
+                  .replace(/<h1>.*?<\/h1>/, '')
+                  .replace(/<h2>Overview<\/h2>/, '')
+                  .split('<h2>Workflow</h2>')[0]
+              }} />
+              <h2>Workflow</h2>
+              <div dangerouslySetInnerHTML={{
+                __html: '<div>' + htmlContent.split('<h2>Workflow</h2>')[1].split('<h2>System Architecture</h2>')[0] + '</div>'
+              }} />
+              <h2>System Architecture</h2>
+              <CloudEdgeDiagram />
+              <div dangerouslySetInnerHTML={{
+                __html: '<div>' + htmlContent.split('<h2>System Architecture</h2>')[1].split('<h2>Implementation Details</h2>')[0] + '</div>'
+              }} />
+              <div dangerouslySetInnerHTML={{
+                __html: '<div><h2>Implementation Details</h2>' + htmlContent.split('<h2>Implementation Details</h2>')[1] + '</div>'
+              }} />
+            </article>
+          ) : (
+            <article
+              className={styles.markdown}
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+            />
+          )}
         </div>
       </main>
     </div>

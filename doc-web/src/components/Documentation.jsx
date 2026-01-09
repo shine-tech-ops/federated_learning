@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { marked } from 'marked'
 import styles from './Documentation.module.css'
 import ArchitectureDiagram from './ArchitectureDiagram'
+import DataFlowDiagram from './DataFlowDiagram'
 
 // Documentation content mapping
 const docs = {
@@ -956,7 +957,15 @@ export default function Documentation() {
               <h2>Architecture Overview</h2>
               <ArchitectureDiagram />
               <div dangerouslySetInnerHTML={{
-                __html: htmlContent.replace(/<h1>.*?<\/h1>/, '').replace(/<h2>Architecture Overview<\/h2>/, '').replace(/<div style=.*?<\/div>/, '')
+                __html: htmlContent
+                  .replace(/<h1>.*?<\/h1>/, '')
+                  .replace(/<h2>Architecture Overview<\/h2>/, '')
+                  .split('<h2>Data Flow</h2>')[0]
+              }} />
+              <h2>Data Flow</h2>
+              <DataFlowDiagram />
+              <div dangerouslySetInnerHTML={{
+                __html: '<div>' + htmlContent.split('<h2>Data Flow</h2>')[1] + '</div>'
               }} />
             </article>
           ) : (
